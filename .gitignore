@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets and local state
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.sqlite
+*.sqlite3
+*.db
+*.db-*
+credentials/
+secrets/
+logs/
+backups/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Hermes local plans
+.hermes/

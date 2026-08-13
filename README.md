@@ -8,7 +8,7 @@ Launch a production-ready Kalshi crypto trading account workflow that is reachab
 
 ## Current status
 
-**Planning only. Live trading is disabled.** No issue, pull request, project-card movement, agent message, or model output authorizes an order.
+**Phase 0 governance is in progress. Live trading is disabled.** No issue, pull request, project-card movement, agent message, or model output authorizes an order.
 
 ## Proposed strategy
 
@@ -22,6 +22,9 @@ For exactly matched BTC and ETH terminal-price contracts:
 6. Require an exact, fresh, single-use owner authorization through WhatsApp before any live submission.
 
 See [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the phased delivery plan and promotion gates.
+
+Phase 0 governance artifacts live under [`docs/adr`](docs/adr),
+[`docs/governance`](docs/governance), and [`docs/runbooks`](docs/runbooks).
 
 ## Non-negotiable boundaries
 

@@ -23,19 +23,21 @@ Workflow permissions default to read-only, checkout does not persist credentials
 - administrator enforcement;
 - signed commits when operationally available.
 
-## Current platform limitation
+## Public repository policy
 
-On 2026-08-13, GitHub returned HTTP 403 when branch protection and repository rulesets were requested for this private user-owned repository: the feature requires GitHub Pro or a public repository. Making a financial system public solely to obtain this control is rejected.
+On 2026-08-13, the owner authorized public visibility so GitHub branch protection could be enforced without a paid plan. Before the visibility change, the complete Git history and tracked tree were scanned for verified and unverified secrets, sensitive filenames, private contact/session identifiers, and hidden blobs. Commit metadata was rewritten to use the owner's GitHub noreply address.
 
-Until private branch protection is available:
+Public visibility does not permit sensitive operational data. Never commit or publish credentials, API key IDs, private keys, account identifiers, WhatsApp sender/chat/session identifiers, owner phone or private email addresses, balances, positions, local databases, logs, approval messages, production configuration, backup archives, or private incident evidence.
 
-- direct pushes to `main` are procedurally forbidden;
-- all changes use PRs and the release checklist;
-- independent review must bind to the exact commit;
-- merge is owner-controlled after checks pass;
-- production promotion remains blocked if protected-branch enforcement is considered mandatory by the exit gate.
+If sensitive information is discovered:
 
-The owner can resolve the limitation by upgrading the GitHub plan or moving the private repository to an organization whose plan supports rulesets. After resolution, apply and verify the intended branch policy before any production canary.
+1. activate incident response and disable affected capabilities;
+2. rotate or revoke the exposed material immediately;
+3. assess clones, forks, caches, Actions logs, artifacts, and Git history;
+4. remove data only after containment—history rewriting is not a substitute for rotation;
+5. document sanitized remediation evidence without reproducing the secret.
+
+Moving back to private visibility requires confirming that the account or organization plan continues to support the same branch-protection controls.
 
 ## Release governance
 

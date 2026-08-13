@@ -4,6 +4,8 @@
 
 Report security concerns privately to the repository owner. Do not open a public issue containing exploit details, credentials, account identifiers, WhatsApp session data, or production logs.
 
+This repository is public. Treat every tracked file, commit, branch, pull request, Actions log, artifact, issue, discussion, and release as globally visible and permanently copyable.
+
 ## Sensitive material
 
 This repository must never contain:

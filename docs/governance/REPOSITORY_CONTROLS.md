@@ -17,7 +17,8 @@ Workflow permissions default to read-only, checkout does not persist credentials
 - pull requests rather than direct pushes;
 - passing `quality`, `dependency-audit`, and `secret-scan` checks;
 - branches current with `main`;
-- one approving independent review, with stale approvals dismissed;
+- an independent credential-free fail-closed review bound to the exact commit, recorded as PR evidence;
+- explicit owner approval after that review and all required checks pass;
 - resolution of review conversations;
 - no force pushes or branch deletion;
 - administrator enforcement;
@@ -38,6 +39,10 @@ If sensitive information is discovered:
 5. document sanitized remediation evidence without reproducing the secret.
 
 Moving back to private visibility requires confirming that the account or organization plan continues to support the same branch-protection controls.
+
+## Review identity model
+
+As in `kalshi-exa-research`, coding and reviewer agents do not require separate GitHub identities. A credential-free reviewer returns structured evidence bound to one frozen commit; the owner verifies that evidence and makes the GitHub merge decision. Any commit change invalidates the review and requires a fresh pass. GitHub enforces PR-only changes, strict required checks, conversation resolution, linear history, administrator protection, and force-push/deletion denial. The owner decision is governance approval only and never financial-action approval.
 
 ## Release governance
 

@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@557e51de59eb14aaaba2ed9621916900a91d50c6
+        with:
+          version: "0.8.4"
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install locked dependencies
+        run: uv sync --frozen --all-groups
+      - name: Validate governance contract
+        run: uv run python scripts/check_governance.py
+      - name: Run tests
+        run: uv run pytest
+      - name: Run Ruff lint
+        run: uv run ruff check .
+      - name: Check Ruff formatting
+        run: uv run ruff format --check .
+      - name: Run mypy
+        run: uv run mypy
+      - name: Check diff hygiene
+        run: git diff --check
+
+  dependency-audit:
+    name: dependency-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@557e51de59eb14aaaba2ed9621916900a91d50c6
+        with:
+          version: "0.8.4"
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install locked dependencies
+        run: uv sync --frozen --all-groups
+      - name: Audit dependencies
+        run: uv run pip-audit --skip-editable
+
+  secret-scan:
+    name: secret-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out complete history
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Scan Git history and working tree
+        uses: trufflesecurity/trufflehog@466da5b0bb161144f6afca9afe5d57975828c410

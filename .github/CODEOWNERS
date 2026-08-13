@@ -1,0 +1,8 @@
+* @chaygriff
+
+/.github/ @chaygriff
+/docs/adr/ @chaygriff
+/docs/governance/ @chaygriff
+/docs/runbooks/ @chaygriff
+/pyproject.toml @chaygriff
+/uv.lock @chaygriff

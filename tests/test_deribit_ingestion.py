@@ -192,6 +192,59 @@ def test_instrument_parser_rejects_duplicate_json_keys() -> None:
         parse_deribit_instruments(response, expected_currency="BTC")
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("is_active", False),
+        ("state", "closed"),
+        ("creation_timestamp", -1),
+        ("creation_timestamp", 10**100),
+        ("creation_timestamp", 1_786_651_201_000),
+        ("expiration_timestamp", 1_786_000_000_000),
+        ("expiration_timestamp", 1_786_651_199_000),
+    ],
+)
+def test_instrument_parser_rejects_invalid_active_lifecycle(field: str, value: object) -> None:
+    instrument = _instrument("BTC", "BTC-28AUG26-100000-C")
+    instrument[field] = value
+    response = DeribitReadOnlyResponse(
+        status_code=200,
+        content_type="application/json",
+        body=_rpc([instrument]),
+        received_at=datetime(2026, 8, 13, 20, 0, 2, tzinfo=UTC),
+    )
+
+    with pytest.raises(DeribitIngestionError):
+        parse_deribit_instruments(response, expected_currency="BTC")
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("strike", 0),
+        ("strike", -1),
+        ("contract_size", 0),
+        ("contract_size", -1),
+        ("min_trade_amount", 0),
+        ("min_trade_amount", -1),
+        ("tick_size", 0),
+        ("tick_size", -1),
+    ],
+)
+def test_instrument_parser_rejects_nonpositive_quantities(field: str, value: object) -> None:
+    instrument = _instrument("BTC", "BTC-28AUG26-100000-C")
+    instrument[field] = value
+    response = DeribitReadOnlyResponse(
+        status_code=200,
+        content_type="application/json",
+        body=_rpc([instrument]),
+        received_at=datetime(2026, 8, 13, 20, 0, 2, tzinfo=UTC),
+    )
+
+    with pytest.raises(DeribitIngestionError, match=f"{field} must be positive"):
+        parse_deribit_instruments(response, expected_currency="BTC")
+
+
 def test_crossed_book_produces_incomplete_run() -> None:
     name = "BTC-28AUG26-100000-C"
     crossed = _book(name)

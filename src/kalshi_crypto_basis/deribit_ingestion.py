@@ -368,6 +368,20 @@ def parse_deribit_instruments(
             raise DeribitIngestionError("instrument kind is not option")
         if _required_text(item, "base_currency") != expected_currency:
             raise DeribitIngestionError("instrument currency mismatch")
+        is_active = _required_bool(item, "is_active")
+        state = _required_text(item, "state")
+        if not is_active or state != "open":
+            raise DeribitIngestionError("instrument is not active and open")
+        creation_timestamp = _required_integer(item, "creation_timestamp")
+        expiration_timestamp = _required_integer(item, "expiration_timestamp")
+        creation_at = _milliseconds_datetime(creation_timestamp, "creation_timestamp")
+        expiration_at = _milliseconds_datetime(expiration_timestamp, "expiration_timestamp")
+        if creation_at > observed_at:
+            raise DeribitIngestionError("instrument creation is later than provider clock")
+        if expiration_at <= creation_at:
+            raise DeribitIngestionError("instrument expiration must be after creation")
+        if expiration_at <= observed_at:
+            raise DeribitIngestionError("active instrument is already expired")
         normalized.append(
             MappingProxyType(
                 {
@@ -377,16 +391,16 @@ def parse_deribit_instruments(
                     "quote_currency": _required_text(item, "quote_currency"),
                     "settlement_currency": _required_text(item, "settlement_currency"),
                     "kind": "option",
-                    "is_active": _required_bool(item, "is_active"),
-                    "state": _required_text(item, "state"),
+                    "is_active": is_active,
+                    "state": state,
                     "settlement_period": _required_text(item, "settlement_period"),
-                    "creation_timestamp": _required_integer(item, "creation_timestamp"),
-                    "expiration_timestamp": _required_integer(item, "expiration_timestamp"),
-                    "strike": _required_decimal(item, "strike"),
+                    "creation_timestamp": creation_timestamp,
+                    "expiration_timestamp": expiration_timestamp,
+                    "strike": _positive_decimal(item, "strike"),
                     "option_type": _enum_text(item, "option_type", {"call", "put"}),
-                    "contract_size": _required_decimal(item, "contract_size"),
-                    "min_trade_amount": _required_decimal(item, "min_trade_amount"),
-                    "tick_size": _required_decimal(item, "tick_size"),
+                    "contract_size": _positive_decimal(item, "contract_size"),
+                    "min_trade_amount": _positive_decimal(item, "min_trade_amount"),
+                    "tick_size": _positive_decimal(item, "tick_size"),
                     "price_index": _required_text(item, "price_index"),
                     "underlying_type": _required_text(item, "underlying_type"),
                 }
@@ -589,6 +603,13 @@ def _required_decimal(item: Mapping[str, object], field: str) -> Decimal:
     value = _optional_decimal(item, field)
     if value is None:
         raise DeribitIngestionError(f"{field} must be numeric")
+    return value
+
+
+def _positive_decimal(item: Mapping[str, object], field: str) -> Decimal:
+    value = _required_decimal(item, field)
+    if value <= 0:
+        raise DeribitIngestionError(f"{field} must be positive")
     return value
 
 

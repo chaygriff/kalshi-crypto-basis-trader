@@ -18,7 +18,7 @@
 | Scheduler and service isolation | Runtime staging plan | No overlap, bounded backlog/retry, graceful shutdown, health/readiness, and read-only process capability tests | Keep scheduler/service disabled |
 | Stream resynchronization | Provider WebSocket contract | Disconnect/sequence-gap discards state and requires authoritative snapshot before reuse | Mark stale and resnapshot |
 | Supply-chain integrity | Lockfile and pinned CI actions | Dependency audit and reproducible clean install | Quarantine dependency |
-| Kill switch | Runbook and independent state | Switch absent/corrupt/active produces zero mutation while reads continue | Incident response |
+| Safety stop | Runbook and independent state | Stop absent/corrupt/active produces zero state-changing requests while reads continue | Incident response |
 | Recovery | Retention/recovery runbook | Encrypted backup integrity and clean restore drill | Block production |
 | Release governance | Checklist and protected branch | Required checks and independent review on frozen commit | No merge/deploy |
 

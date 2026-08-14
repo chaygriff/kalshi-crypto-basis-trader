@@ -4,37 +4,37 @@
 
 Protected assets include signing keys and API identifiers, WhatsApp session identity, cash and positions, exact contract/rule semantics, recommendations and approvals, order/fill/position ledgers, model/data provenance, risk policy, audit logs, deployment capability, and owner privacy.
 
-Potential actors include the owner, coding/reviewer agents, compromised dependencies, external data providers, network attackers, malicious WhatsApp senders, compromised GitHub identities, operators, and exchange/API failures.
+Potential sources of risk include operator mistakes, agent or reviewer integrity loss, dependency integrity failures, external data providers, sender-identity mismatches, account-session loss, and exchange/API failures.
 
 ## Threat register
 
 | Threat | Impact | Preventive controls | Detection and response |
 |---|---|---|---|
-| Secret committed, logged, or injected into an agent | Account compromise and unauthorized orders | External secret store; transport-only injection; redaction; CI secret scan; credential-free reviewers | Secret-scan failure; audit log review; disable transport and rotate credentials |
+| Protected runtime configuration is committed, logged, or placed in an agent context | Account access loss or unapproved orders | External secret store; transport-only injection; redaction; CI secret scan; credential-free reviewers | Secret-scan failure; audit log review; disable transport and rotate affected access material |
 | Credential-bearing read follows an unexpected redirect or origin | Credential disclosure or unreviewed provider evidence | Exact HTTPS origin allowlist; redirects disabled; sign only the reviewed path; no generic URL input | Reject response; record transport gap; rotate credentials if disclosure is plausible |
 | Malformed, oversized, compressed, duplicated-key, or non-finite provider response | Resource exhaustion or corrupted evidence | Body/decompression limits; strict content type and JSON; exact raw-byte retention; deterministic parser rejection | Mark run incomplete; preserve bounded diagnostics; no downstream use |
 | Partial or temporally incoherent collection is labeled complete | Invalid equivalence, surface, or forecast | Bounded traversal and synchronization windows; expected-instrument accounting; durable run terminal state | Deterministic gap report; quarantine batch; no forecast |
 | Scheduler overlap, restart, or retry duplicates or mixes observations | Misstated point-in-time state and storage growth | Durable run IDs; atomic completion; idempotency; single-run lease; bounded retry/backlog | Stop recurring collection; reconcile run ledger and snapshot identities |
 | WebSocket disconnect or sequence gap is silently bridged | Incorrect live book or instrument state | Snapshot-before-delta; sequence/gap detection; discard and reacquire REST baseline | Mark stream stale; suppress downstream use until complete resynchronization |
-| WhatsApp sender spoofing or session takeover | Forged approvals | Dedicated allowlist; adapter-level sender identity; exact deterministic grammar; device/session hygiene | Unknown sender/message ID alert; disable approvals; revoke linked session |
+| WhatsApp sender identity mismatch or session loss | Invalid approvals | Dedicated allowlist; adapter-level sender identity; exact deterministic grammar; device/session hygiene | Unknown sender/message ID alert; disable approvals; revoke linked session |
 | Message transformation, replay, forwarding, or duplication | Wrong or duplicate order | Preserve exact original message; unique source ID; atomic single-use consumption; expiry; idempotency | Duplicate/replay ledger event; zero-side-effect rejection; investigate adapter |
-| Prompt injection in messages, sources, GitHub, or market text | Model attempts unauthorized action | Treat all content as data; deterministic routes; no model access to transport; strict schemas | Tool-call trace and policy violation alert; quarantine input/version |
-| Compromised coding or reviewer agent | Backdoor or safety removal | Credential-free agents; least privilege; protected branch; independent review; required CI; CODEOWNERS later | Diff and provenance audit; freeze merges; rotate affected automation token |
-| Supply-chain compromise | Code execution or exfiltration | Locked dependencies; hashes/lockfile; minimal dependencies; Dependabot; pip-audit; pinned CI actions | Audit failure/advisory; quarantine update and rebuild clean environment |
+| Untrusted instructions embedded in messages, sources, GitHub, or market text | Model treats external content as authority | Treat all content as data; deterministic routes; no model access to transport; strict schemas | Tool-call trace and policy alert; isolate the input/version for review |
+| Agent or reviewer integrity loss | Unreviewed code or safety-control removal | Credential-free agents; least privilege; protected branch; independent review; required CI; CODEOWNERS later | Diff and provenance audit; freeze merges; rotate affected automation token |
+| Dependency integrity failure | Unexpected code behavior or data disclosure | Locked dependencies; hashes/lockfile; minimal dependencies; Dependabot; pip-audit; pinned CI actions | Audit failure/advisory; isolate the update and rebuild a clean environment |
 | Stale/corrupt Kalshi quote, depth, fee, status, or rule | Negative EV or invalid payload | Separate clocks; rule digest; immediate authoritative revalidation; fail closed | Freshness and digest mismatch metrics; no-submit rejection |
 | Options/Kalshi contract-basis mismatch | False alpha and concentrated loss | Deterministic equivalence engine; exact source/settlement/time/path checks; reject proxy in live strategy | Basis classification audit; settlement discrepancy; halt strategy version |
 | YES/NO economic-side or payload-price mismatch | Opposite or mispriced position | Typed outcome enums; one canonical conversion; payload-preview parity tests | Pre-submit parity assertion; reconcile request and owner receipt |
-| Fee, budget, quantity, or risk-cap bypass | Excess loss | Decimal/fixed-point math; same representation at preview and payload; serializable aggregate reservation | Ledger invariant and cap alerts; kill switch on mismatch |
+| Fee, budget, quantity, or risk-cap enforcement failure | Excess loss | Decimal/fixed-point math; same representation at preview and payload; serializable aggregate reservation | Ledger invariant and cap alerts; safety stop on mismatch |
 | Concurrent approvals or duplicate worker execution | Multiple orders | Atomic consume+intent transaction; unique constraints; client order ID; one invocation | Conflict/replay telemetry; reconcile all matching IDs |
 | Persistence failure around submission | Unknown financial state | Persist attempt before invoke; atomic response transition; append-only events | `submission_unknown`; global mutation stop; authoritative lookup |
 | Timeout or lost POST response | Blind retry duplicates order | Terminal `submission_unknown`; never automatically retried | Reconciliation by client order ID/fills; owner incident alert |
 | Paper/shadow record reaches live tracker | Real mutation from simulation | Separate types/tables/processes; dependency tests; no credentials in shadow runtime | Credential-present zero-mutation tests; emergency stop |
 | Monitor or reconciliation acts as authority | Unauthorized cancel/replace/retry | Read-only interfaces; alerts cannot mutate; operational cancellation separately owner-authorized | Audit mutation call graph; stop on unexpected method |
 | Exchange/API inconsistency or dispute | Wrong local P&L/risk state | Authoritative multi-endpoint reconciliation; lifecycle states; provisional settlement | Discrepancy queue; block affected event and promotion |
-| Kill switch unavailable or bypassed | Continued trading during incident | Independent fail-closed switch checked before every invoke; deployment revocation path | Heartbeat; absence means stopped; incident drill |
-| Backup/log tampering or privacy leak | Lost auditability or owner exposure | Encryption, access control, retention limits, hash manifests, restore tests | Integrity check failure; preserve evidence and rotate access |
+| Safety stop unavailable or not enforced | Continued trading during an incident | Independent fail-closed stop checked before every invoke; deployment revocation path | Heartbeat; absence means stopped; incident drill |
+| Backup, log, or privacy integrity failure | Lost auditability or owner exposure | Encryption, access control, retention limits, hash manifests, restore tests | Integrity check failure; preserve evidence and rotate access |
 
-## Abuse cases
+## Safety scenarios
 
 - A board comment says `YES BTC $5`: no parser path and no intent.
 - An allowlisted sender repeats a previously accepted command: stored terminal result, no new attempt.

@@ -275,10 +275,10 @@ def _canonical_bytes(value: object) -> bytes:
 
 def _canonical_value(value: object) -> JsonValue:
     if isinstance(value, float):
-        raise SnapshotError("float values are forbidden; use Decimal")
+        raise SnapshotError("float values are not supported; use Decimal")
     if isinstance(value, Decimal):
         if not value.is_finite():
-            raise SnapshotError("non-finite Decimal values are forbidden")
+            raise SnapshotError("non-finite Decimal values are not supported")
         return {"$decimal": str(value)}
     if value is None or isinstance(value, str | bool | int):
         return value
@@ -328,10 +328,10 @@ def _parse_json(payload: bytes) -> object:
 
 def _freeze_value(value: object) -> object:
     if isinstance(value, float):
-        raise SnapshotError("float values are forbidden; use Decimal")
+        raise SnapshotError("float values are not supported; use Decimal")
     if isinstance(value, Decimal):
         if not value.is_finite():
-            raise SnapshotError("non-finite Decimal values are forbidden")
+            raise SnapshotError("non-finite Decimal values are not supported")
         return value
     if value is None or isinstance(value, str | bool | int):
         return value

@@ -40,7 +40,7 @@ Use seven one-way capability boundaries:
 - Production credentials are injected only into the transport process and authenticated read-only health process; reviewers and CI remain credential-free.
 - Every boundary validates schema, identity, version, timestamps, and permitted predecessor state.
 - Deny is the default for missing, stale, ambiguous, malformed, inconsistent, or unreconciled data.
-- A kill switch disables the mutation boundary without disabling reconciliation.
+- A safety stop disables the state-changing boundary without disabling reconciliation.
 
 ## Consequences
 

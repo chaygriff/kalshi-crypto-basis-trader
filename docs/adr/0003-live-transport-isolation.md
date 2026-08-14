@@ -23,7 +23,7 @@ It may not accept free-form text, ticker aliases, model probabilities, budgets r
 - Production mutation requires deployment-level capability injection, an owner-approved release record, passing required checks, independent review evidence, and an unexpired canary policy.
 - Credentials are available only to the narrowly scoped runtime that requires them, never CI, GitHub, test fixtures, reviewer agents, model workers, or shadow workers. A Phase 1 authenticated read process receives signing capability without receiving any mutation method or route.
 - Network policy should allow the transport only to required Kalshi hosts; shadow and reviewer processes have no mutation credential.
-- Kill-switch state is independently readable and defaults to stopped on absence, corruption, or timeout.
+- Safety-stop state is independently readable and defaults to stopped on absence, corruption, or timeout.
 
 Read-only connectivity, authenticated health, collection success, and persisted market evidence are data capabilities only. They cannot enable, configure, or invoke the eventual mutation transport.
 

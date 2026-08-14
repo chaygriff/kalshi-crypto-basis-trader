@@ -377,11 +377,11 @@ def test_nonbinary_orderbook_rejects_before_transport_access() -> None:
     assert transport.calls == []
 
 
-class HostileString(str):
+class StringSubclass(str):
     pass
 
 
-@pytest.mark.parametrize("market_type", [HostileString("binary"), 1, True, None, [], {}])
+@pytest.mark.parametrize("market_type", [StringSubclass("binary"), 1, True, None, [], {}])
 def test_orderbook_market_type_requires_exact_builtin_string(
     market_type: object,
 ) -> None:
@@ -679,7 +679,7 @@ def test_unknown_partition_rejects_before_any_transport_access() -> None:
     assert transport.calls == []
 
 
-class HostileDatetime(datetime):
+class DatetimeSubclass(datetime):
     pass
 
 
@@ -693,7 +693,7 @@ class HostileDatetime(datetime):
         "2026-01-01T00:00:00Z",
         "",
         object(),
-        HostileDatetime(2026, 1, 1, tzinfo=UTC),
+        DatetimeSubclass(2026, 1, 1, tzinfo=UTC),
     ],
 )
 def test_invalid_settlement_time_type_is_domain_error_before_transport(
@@ -979,28 +979,28 @@ def test_public_identity_arguments_reject_string_subclasses_before_transport(
         transport=transport,
         reviewed_series=(ReviewedSeries(ticker="SAFE", underlying="BTC"),),
     )
-    hostile = HostileString("SAFE")
+    string_subclass_value = StringSubclass("SAFE")
 
     with pytest.raises(KalshiIngestionError, match="non-empty string"):
         if entry_point == "discover":
-            ingestor.discover_markets(series_ticker=hostile)
+            ingestor.discover_markets(series_ticker=string_subclass_value)
         elif entry_point == "orderbook":
-            ingestor.get_orderbook(ticker=hostile, market_type="binary")
+            ingestor.get_orderbook(ticker=string_subclass_value, market_type="binary")
         elif entry_point == "live_series":
             ingestor.get_live_market_evidence(
-                series_ticker=hostile, event_ticker="SAFE", market_ticker="SAFE"
+                series_ticker=string_subclass_value, event_ticker="SAFE", market_ticker="SAFE"
             )
         elif entry_point == "live_event":
             ingestor.get_live_market_evidence(
-                series_ticker="SAFE", event_ticker=hostile, market_ticker="SAFE"
+                series_ticker="SAFE", event_ticker=string_subclass_value, market_ticker="SAFE"
             )
         elif entry_point == "live_market":
             ingestor.get_live_market_evidence(
-                series_ticker="SAFE", event_ticker="SAFE", market_ticker=hostile
+                series_ticker="SAFE", event_ticker="SAFE", market_ticker=string_subclass_value
             )
         else:
             ingestor.get_routed_market_detail(
-                ticker=hostile,
+                ticker=string_subclass_value,
                 settlement_time=datetime(2026, 1, 1, tzinfo=UTC),
                 underlying="BTC",
             )
@@ -1070,7 +1070,7 @@ def test_read_only_response_rejects_datetime_subclasses(field: str) -> None:
         "observed_at": datetime(2026, 1, 1, tzinfo=UTC),
         "received_at": datetime(2026, 1, 1, tzinfo=UTC),
     }
-    values[field] = HostileDatetime(2026, 1, 1, tzinfo=UTC)
+    values[field] = DatetimeSubclass(2026, 1, 1, tzinfo=UTC)
 
     with pytest.raises(KalshiIngestionError, match=f"{field} must be a datetime"):
         ReadOnlyResponse(**values)  # type: ignore[arg-type]
@@ -1112,18 +1112,18 @@ def test_malformed_transport_response_is_domain_error(workflow: str, response: o
     assert len(transport.calls) == 1
 
 
-class HostileBytes(bytes):
+class BytesSubclass(bytes):
     pass
 
 
-@pytest.mark.parametrize("body", [[], HostileBytes(b'{"markets":[],"cursor":""}')])
-def test_forged_exact_response_is_revalidated_at_consumption(body: object) -> None:
-    forged = object.__new__(ReadOnlyResponse)
-    object.__setattr__(forged, "body", body)
-    object.__setattr__(forged, "observed_at", datetime(2026, 1, 1, tzinfo=UTC))
-    object.__setattr__(forged, "received_at", datetime(2026, 1, 1, tzinfo=UTC))
+@pytest.mark.parametrize("body", [[], BytesSubclass(b'{"markets":[],"cursor":""}')])
+def test_unvalidated_response_is_revalidated_at_consumption(body: object) -> None:
+    unvalidated_response = object.__new__(ReadOnlyResponse)
+    object.__setattr__(unvalidated_response, "body", body)
+    object.__setattr__(unvalidated_response, "observed_at", datetime(2026, 1, 1, tzinfo=UTC))
+    object.__setattr__(unvalidated_response, "received_at", datetime(2026, 1, 1, tzinfo=UTC))
     ingestor = KalshiReadOnlyIngestor(
-        transport=MalformedTransport(forged),
+        transport=MalformedTransport(unvalidated_response),
         reviewed_series=(ReviewedSeries("SAFE", "BTC"),),
     )
 
@@ -1131,13 +1131,13 @@ def test_forged_exact_response_is_revalidated_at_consumption(body: object) -> No
         ingestor.discover_markets(series_ticker="SAFE")
 
 
-def test_forged_exact_response_clock_order_is_revalidated_at_consumption() -> None:
-    forged = object.__new__(ReadOnlyResponse)
-    object.__setattr__(forged, "body", b'{"markets":[],"cursor":""}')
-    object.__setattr__(forged, "observed_at", datetime(2026, 1, 2, tzinfo=UTC))
-    object.__setattr__(forged, "received_at", datetime(2026, 1, 1, tzinfo=UTC))
+def test_unvalidated_response_clock_order_is_revalidated_at_consumption() -> None:
+    unvalidated_response = object.__new__(ReadOnlyResponse)
+    object.__setattr__(unvalidated_response, "body", b'{"markets":[],"cursor":""}')
+    object.__setattr__(unvalidated_response, "observed_at", datetime(2026, 1, 2, tzinfo=UTC))
+    object.__setattr__(unvalidated_response, "received_at", datetime(2026, 1, 1, tzinfo=UTC))
     ingestor = KalshiReadOnlyIngestor(
-        transport=MalformedTransport(forged),
+        transport=MalformedTransport(unvalidated_response),
         reviewed_series=(ReviewedSeries("SAFE", "BTC"),),
     )
 
@@ -1170,7 +1170,7 @@ def test_explicit_ingestion_error_from_transport_is_preserved() -> None:
 
 
 @pytest.mark.parametrize(
-    "snapshot_id", [HostileString("sha256:" + "0" * 64), 1, True, None, [], {}]
+    "snapshot_id", [StringSubclass("sha256:" + "0" * 64), 1, True, None, [], {}]
 )
 @pytest.mark.parametrize("field", ["orderbook", "market"])
 def test_validator_snapshot_ids_require_exact_builtin_strings(
@@ -1195,7 +1195,7 @@ def test_nonstandard_json_constants_fail_globally(constant: bytes) -> None:
     transport = FixtureTransport(
         [
             ReadOnlyResponse(
-                body=(b'{"markets":[],"cursor":"","unused":{"hostile":' + constant + b"}}"),
+                body=(b'{"markets":[],"cursor":"","unused":{"extra":' + constant + b"}}"),
                 observed_at=datetime(2026, 8, 13, 19, tzinfo=UTC),
                 received_at=datetime(2026, 8, 13, 19, 0, 1, tzinfo=UTC),
             )
@@ -1254,13 +1254,13 @@ def test_reviewed_underlying_is_runtime_validated(underlying: object) -> None:
     assert transport.calls == []
 
 
-@pytest.mark.parametrize("ticker", [1, True, object(), None, [], {}, HostileString("SAFE")])
+@pytest.mark.parametrize("ticker", [1, True, object(), None, [], {}, StringSubclass("SAFE")])
 def test_reviewed_series_ticker_requires_exact_builtin_string(ticker: object) -> None:
     with pytest.raises(KalshiIngestionError, match="reviewed series ticker"):
         ReviewedSeries(ticker=ticker, underlying="BTC")  # type: ignore[arg-type]
 
 
-@pytest.mark.parametrize("underlying", [HostileString("BTC"), None, [], {}, object()])
+@pytest.mark.parametrize("underlying", [StringSubclass("BTC"), None, [], {}, object()])
 def test_reviewed_series_underlying_requires_exact_builtin_string(
     underlying: object,
 ) -> None:
@@ -1268,7 +1268,7 @@ def test_reviewed_series_underlying_requires_exact_builtin_string(
         ReviewedSeries(ticker="SAFE", underlying=underlying)  # type: ignore[arg-type]
 
 
-def test_orderbook_validator_rejects_fields_forged_away_from_snapshot() -> None:
+def test_orderbook_validator_rejects_fields_altered_after_snapshot() -> None:
     ingestor = KalshiReadOnlyIngestor(
         transport=FixtureTransport(
             [
@@ -1284,13 +1284,13 @@ def test_orderbook_validator_rejects_fields_forged_away_from_snapshot() -> None:
         market_ticker="EXACT-MARKET",
     )
     book = ingestor.get_orderbook(ticker="EXACT-MARKET", market_type="binary")
-    forged = replace(
+    altered_book = replace(
         book,
         yes_bids=(OrderbookLevel(price=Decimal("0.41"), count=Decimal("999")),),
     )
 
     with pytest.raises(TypeError, match="unexpected keyword argument"):
-        cast(Any, ingestor.validate_orderbook_for_market)(book=forged, market=evidence.market)
+        cast(Any, ingestor.validate_orderbook_for_market)(book=altered_book, market=evidence.market)
 
 
 def test_routed_underlying_must_match_returned_reviewed_series() -> None:
@@ -1316,9 +1316,9 @@ def test_routed_underlying_must_match_returned_reviewed_series() -> None:
         )
 
 
-@pytest.mark.parametrize("forged_field", ["ticker", "yes_asks"])
-def test_orderbook_validator_rejects_all_provenance_forgery_classes(
-    forged_field: str,
+@pytest.mark.parametrize("altered_field", ["ticker", "yes_asks"])
+def test_orderbook_validator_rejects_all_provenance_alterations(
+    altered_field: str,
 ) -> None:
     transport = FixtureTransport(
         [
@@ -1336,16 +1336,16 @@ def test_orderbook_validator_rejects_all_provenance_forgery_classes(
         market_ticker="EXACT-MARKET",
     )
     book = ingestor.get_orderbook(ticker="EXACT-MARKET", market_type="binary")
-    if forged_field == "ticker":
-        forged = replace(book, ticker="OTHER-MARKET")
+    if altered_field == "ticker":
+        altered_book = replace(book, ticker="OTHER-MARKET")
     else:
-        forged = replace(
+        altered_book = replace(
             book,
             yes_asks=(OrderbookLevel(price=Decimal("0.50"), count=Decimal("1")),),
         )
 
     with pytest.raises(TypeError, match="unexpected keyword argument"):
-        cast(Any, ingestor.validate_orderbook_for_market)(book=forged, market=evidence.market)
+        cast(Any, ingestor.validate_orderbook_for_market)(book=altered_book, market=evidence.market)
 
 
 def test_routed_market_rejects_unreviewed_returned_series() -> None:
@@ -1388,7 +1388,7 @@ def test_orderbook_validator_reconstructs_complete_snapshot_against_raw_evidence
         market_ticker="EXACT-MARKET",
     )
     book = ingestor.get_orderbook(ticker="EXACT-MARKET", market_type="binary")
-    forged_snapshot = object.__new__(type(book.snapshot))
+    unvalidated_snapshot = object.__new__(type(book.snapshot))
     for field in (
         "source",
         "request_fingerprint",
@@ -1400,12 +1400,12 @@ def test_orderbook_validator_reconstructs_complete_snapshot_against_raw_evidence
         "snapshot_id",
         "idempotency_key",
     ):
-        object.__setattr__(forged_snapshot, field, getattr(book.snapshot, field))
-    object.__setattr__(forged_snapshot, "snapshot_id", "sha256:" + "0" * 64)
-    forged = replace(book, snapshot=forged_snapshot)
+        object.__setattr__(unvalidated_snapshot, field, getattr(book.snapshot, field))
+    object.__setattr__(unvalidated_snapshot, "snapshot_id", "sha256:" + "0" * 64)
+    altered_book = replace(book, snapshot=unvalidated_snapshot)
 
     with pytest.raises(TypeError, match="unexpected keyword argument"):
-        cast(Any, ingestor.validate_orderbook_for_market)(book=forged, market=evidence.market)
+        cast(Any, ingestor.validate_orderbook_for_market)(book=altered_book, market=evidence.market)
 
 
 def test_market_grid_cannot_be_replaced_away_from_detail_snapshot() -> None:
@@ -1424,13 +1424,13 @@ def test_market_grid_cannot_be_replaced_away_from_detail_snapshot() -> None:
         market_ticker="EXACT-MARKET",
     )
     book = ingestor.get_orderbook(ticker="EXACT-MARKET", market_type="binary")
-    forged_market = replace(
+    altered_market = replace(
         evidence.market,
         price_ranges=(PriceRange(Decimal("0"), Decimal("1"), Decimal("0.005")),),
     )
 
     with pytest.raises(TypeError, match="unexpected keyword argument"):
-        cast(Any, ingestor.validate_orderbook_for_market)(book=book, market=forged_market)
+        cast(Any, ingestor.validate_orderbook_for_market)(book=book, market=altered_market)
 
 
 def test_unhashable_routed_underlying_fails_as_domain_error_before_get() -> None:

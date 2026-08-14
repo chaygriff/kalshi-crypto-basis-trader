@@ -2,11 +2,11 @@
 
 ## Trigger conditions
 
-Invoke this runbook for suspected credential/session compromise, unexpected mutation, `submission_unknown`, duplicate intent/order, ledger or reconciliation conflict, rule/side/payload mismatch, cap breach, unauthorized sender event, secret exposure, or inability to verify kill-switch state.
+Invoke this runbook for suspected credential/session integrity loss, unexpected state-changing requests, `submission_unknown`, duplicate intent/order, ledger or reconciliation conflict, rule/side/payload mismatch, cap breach, unrecognized sender events, protected-data exposure, or inability to verify safety-stop state.
 
 ## Immediate actions
 
-1. Activate the kill switch and revoke the transport deployment capability. Absence of confirmation means assume stopped but verify from an independent read path.
+1. Activate the safety stop and revoke the transport deployment capability. Absence of confirmation means assume stopped but verify from an independent read path.
 2. Preserve WhatsApp source events, append-only ledgers, deployment metadata, and redacted logs. Do not delete or rewrite evidence.
 3. Do not retry, replace, resize, or cancel based solely on local state.
 4. Query authoritative Kalshi orders, fills, positions, balances, and market lifecycle through read-only reconciliation.

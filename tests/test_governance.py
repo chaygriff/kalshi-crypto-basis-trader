@@ -25,7 +25,7 @@ def test_unreviewed_live_enablement_marker_fails_closed(tmp_path: Path) -> None:
     _copy_governance(tmp_path)
     (tmp_path / "LIVE_TRADING_ENABLED").write_text("true\n", encoding="utf-8")
 
-    with pytest.raises(GovernanceError, match="Phase 0 forbidden capability"):
+    with pytest.raises(GovernanceError, match="Phase 0 disallowed capability"):
         validate_governance(tmp_path)
 
 
@@ -57,7 +57,7 @@ def test_keyword_only_state_machine_fails_closed(tmp_path: Path) -> None:
     _copy_governance(tmp_path)
     states = tmp_path / "docs/adr/0002-financial-state-machines.md"
     states.write_text(
-        "submission_unknown never automatically retried forbidden transitions terminal "
+        "submission_unknown never automatically retried disallowed transitions terminal "
         "deterministic, strategy-owned ready_to_submit\n",
         encoding="utf-8",
     )
@@ -82,7 +82,7 @@ def test_phase_zero_live_capability_fails_closed(
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
 
-    with pytest.raises(GovernanceError, match="Phase 0 forbidden capability"):
+    with pytest.raises(GovernanceError, match="Phase 0 disallowed capability"):
         validate_governance(tmp_path)
 
 

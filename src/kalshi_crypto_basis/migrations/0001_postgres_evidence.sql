@@ -108,7 +108,7 @@ BEGIN
     WHERE run_id = NEW.run_id AND ordinal = NEW.ordinal;
     IF FOUND THEN
         IF retained_snapshot_id = NEW.snapshot_id THEN
-            RETURN NEW;
+            RETURN NULL;
         END IF;
         RAISE EXCEPTION 'collection snapshot ordinal conflict'
             USING ERRCODE = '23505';

@@ -263,6 +263,86 @@ def test_postgres_collection_run_replays_terminal_state_and_snapshot_order() -> 
     assert replayed.expected_snapshot_count == 1
 
 
+def test_direct_sql_snapshot_link_retry_is_idempotent_and_conflicts_fail() -> None:
+    assert MIGRATOR_SERVICE is not None
+    assert RUNTIME_SERVICE is not None
+    apply_postgres_migrations(MIGRATOR_SERVICE, database_name=TEST_DATABASE_NAME)
+    first_raw = b'{"jsonrpc":"2.0","result":["direct-retry-first"]}'
+    second_raw = b'{"jsonrpc":"2.0","result":["direct-retry-second"]}'
+    first = SnapshotEnvelope.create(
+        source="deribit",
+        request_fingerprint=canonical_request_fingerprint(
+            "GET", "/public/get_order_book", {"depth": 1, "instrument_name": "BTC-RETRY-A"}
+        ),
+        observed_at=datetime(2026, 8, 13, 20, 1, tzinfo=UTC),
+        ingested_at=datetime(2026, 8, 13, 20, 1, 1, tzinfo=UTC),
+        parser_version="deribit-order-book-v1",
+        raw_payload=first_raw,
+        normalized={"book": {"instrument_name": "BTC-RETRY-A"}},
+    )
+    second = SnapshotEnvelope.create(
+        source="deribit",
+        request_fingerprint=canonical_request_fingerprint(
+            "GET", "/public/get_order_book", {"depth": 1, "instrument_name": "BTC-RETRY-B"}
+        ),
+        observed_at=datetime(2026, 8, 13, 20, 1, tzinfo=UTC),
+        ingested_at=datetime(2026, 8, 13, 20, 1, 1, tzinfo=UTC),
+        parser_version="deribit-order-book-v1",
+        raw_payload=second_raw,
+        normalized={"book": {"instrument_name": "BTC-RETRY-B"}},
+    )
+    run_id = str(uuid4())
+    insert_link = """
+        INSERT INTO evidence.collection_run_snapshots (
+            run_id, ordinal, snapshot_id
+        ) VALUES (%s, %s, %s)
+    """
+    with PostgresEvidenceStore.connect(RUNTIME_SERVICE, database_name=TEST_DATABASE_NAME) as store:
+        store.put(first, raw_payload=first_raw)
+        store.put(second, raw_payload=second_raw)
+        store.start_run(
+            run_id=run_id,
+            provider="deribit",
+            scope=("BTC",),
+            started_at=datetime(2026, 8, 13, 20, 1, tzinfo=UTC),
+        )
+
+    with psycopg.connect(service=RUNTIME_SERVICE, dbname=TEST_DATABASE_NAME) as connection:
+        connection.execute(insert_link, (run_id, 0, first.snapshot_id))
+        connection.execute(insert_link, (run_id, 0, first.snapshot_id))
+        retained = connection.execute(
+            """
+            SELECT ordinal, snapshot_id
+            FROM evidence.collection_run_snapshots
+            WHERE run_id = %s
+            """,
+            (run_id,),
+        ).fetchall()
+    assert retained == [(0, first.snapshot_id)]
+
+    with psycopg.connect(service=RUNTIME_SERVICE, dbname=TEST_DATABASE_NAME) as connection:
+        with pytest.raises(psycopg.errors.UniqueViolation, match="ordinal conflict"):
+            connection.execute(insert_link, (run_id, 0, second.snapshot_id))
+
+    with psycopg.connect(service=RUNTIME_SERVICE, dbname=TEST_DATABASE_NAME) as connection:
+        with pytest.raises(psycopg.errors.UniqueViolation):
+            connection.execute(insert_link, (run_id, 1, first.snapshot_id))
+
+    with PostgresEvidenceStore.connect(RUNTIME_SERVICE, database_name=TEST_DATABASE_NAME) as store:
+        store.attach_snapshot(run_id=run_id, snapshot_id=first.snapshot_id, ordinal=0)
+        store.finish_run(
+            run_id=run_id,
+            state="complete",
+            completed_at=datetime(2026, 8, 13, 20, 1, 2, tzinfo=UTC),
+            gaps=(),
+            expected_snapshot_count=1,
+        )
+
+    with psycopg.connect(service=RUNTIME_SERVICE, dbname=TEST_DATABASE_NAME) as connection:
+        with pytest.raises(psycopg.errors.ObjectNotInPrerequisiteState, match="terminal"):
+            connection.execute(insert_link, (run_id, 0, first.snapshot_id))
+
+
 def test_postgres_complete_requires_nonzero_exact_snapshot_count() -> None:
     assert MIGRATOR_SERVICE is not None
     assert RUNTIME_SERVICE is not None

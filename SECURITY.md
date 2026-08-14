@@ -2,7 +2,7 @@
 
 ## Reporting
 
-Report security concerns privately to the repository owner. Do not open a public issue containing exploit details, credentials, account identifiers, WhatsApp session data, or production logs.
+Report security concerns privately to the repository owner. Do not open a public issue containing sensitive technical details, credentials, account identifiers, WhatsApp session data, or production logs.
 
 This repository is public. Treat every tracked file, commit, branch, pull request, Actions log, artifact, issue, discussion, and release as globally visible and permanently copyable.
 
@@ -18,7 +18,7 @@ This repository must never contain:
 
 Use local secret stores or deployment secret injection. Documentation uses `[REDACTED]` placeholders only.
 
-## High-impact vulnerability classes
+## Release-blocking safety conditions
 
 Treat these as release blockers:
 
@@ -26,11 +26,11 @@ Treat these as release blockers:
 - replay or duplicate submission;
 - stale quote/rule/market-state use;
 - YES/NO economic-side or payload-price mismatch;
-- cap or fee bypass;
+- cap or fee enforcement failure;
 - shadow/paper paths reaching production transport;
 - ambiguous submission automatically retried;
 - ledger writes that are not atomic with state transitions;
-- WhatsApp sender-identity or message-transformation bypass;
+- WhatsApp sender-identity or message-transformation control failure;
 - secret exposure through logs, traces, CI artifacts, prompts, or exceptions.
 - credential-bearing redirects, arbitrary provider origins, or unreviewed request paths;
 - a read-only runtime exposing generic or mutation-capable HTTP methods;
@@ -38,7 +38,7 @@ Treat these as release blockers:
 - recurring collectors that can overlap, silently retry, lose terminal run state, or resume from incomplete evidence;
 - WebSocket state reused after a disconnect, sequence gap, or overflow without a fresh authoritative snapshot.
 
-## Production response
+## Operational safety response
 
 On suspected compromise or inconsistent state:
 

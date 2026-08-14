@@ -1,8 +1,8 @@
-# Kill Switch Runbook
+# Safety Stop Runbook
 
 ## Policy
 
-The mutation kill switch is independent of strategy and messaging state. It is checked immediately before every transport invocation. Missing, unreadable, stale, contradictory, or corrupt switch state means **STOPPED**. It never disables read-only reconciliation.
+The safety stop is independent of strategy and messaging state. It is checked immediately before every transport invocation. Missing, unreadable, stale, contradictory, or corrupt stop state means **STOPPED**. It never disables read-only reconciliation. This is the control commonly called a kill switch in exchange operations; the repository uses “safety stop” in agent-facing prose.
 
 ## Activation triggers
 

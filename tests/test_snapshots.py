@@ -71,7 +71,7 @@ def test_reserved_decimal_marker_cannot_be_supplied_as_data() -> None:
 
 
 def test_request_fingerprint_rejects_float_values() -> None:
-    with pytest.raises(SnapshotError, match="float values are forbidden"):
+    with pytest.raises(SnapshotError, match="float values are not supported"):
         canonical_request_fingerprint("GET", "/markets", {"price": 0.42})
 
 
@@ -208,7 +208,7 @@ def test_schema_migration_is_explicit_and_fails_closed() -> None:
         migrate_canonical_json(b'{"schema_version":true}', target_version=1)
 
 
-def test_direct_envelope_construction_cannot_forge_or_retain_mutable_state() -> None:
+def test_direct_envelope_construction_cannot_misstate_identity_or_retain_mutable_state() -> None:
     valid = _snapshot(normalized={"levels": [{"price": Decimal("0.41")}]})
     mutable = {"levels": [{"price": Decimal("0.41")}]}
 
@@ -243,9 +243,9 @@ def test_direct_envelope_construction_cannot_forge_or_retain_mutable_state() -> 
         )
 
 
-def test_store_revalidates_object_new_bypass_before_persistence() -> None:
+def test_store_revalidates_unvalidated_instance_before_persistence() -> None:
     valid = _snapshot(normalized={"price": Decimal("0.41")})
-    forged = object.__new__(SnapshotEnvelope)
+    unvalidated = object.__new__(SnapshotEnvelope)
     for field, value in {
         "source": valid.source,
         "request_fingerprint": valid.request_fingerprint,
@@ -257,13 +257,13 @@ def test_store_revalidates_object_new_bypass_before_persistence() -> None:
         "snapshot_id": "sha256:" + "0" * 64,
         "idempotency_key": "sha256:" + "1" * 64,
     }.items():
-        object.__setattr__(forged, field, value)
+        object.__setattr__(unvalidated, field, value)
 
     store = InMemorySnapshotStore()
     with pytest.raises(SnapshotError, match="snapshot identity mismatch"):
-        store.put(forged, raw_payload=b"{}")
-    assert store.get(forged.snapshot_id) is None
-    assert store.get_raw(forged.raw_sha256) is None
+        store.put(unvalidated, raw_payload=b"{}")
+    assert store.get(unvalidated.snapshot_id) is None
+    assert store.get_raw(unvalidated.raw_sha256) is None
 
 
 def test_replay_rejects_malformed_decimal_marker_as_snapshot_error() -> None:

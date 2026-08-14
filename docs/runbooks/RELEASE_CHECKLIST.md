@@ -36,9 +36,9 @@
 - [ ] Capturing fake transport observes only the expected bounded IOC request.
 - [ ] Ambiguous invocation stores terminal `submission_unknown` and blocks replay.
 - [ ] Actual-channel deterministic routing and owner-visible output are verified.
-- [ ] Kill-switch and reconciliation drills pass.
+- [ ] Safety-stop and reconciliation drills pass.
 - [ ] Owner separately approves promotion/deployment stage.
 
-## Prohibited shortcuts
+## Required release controls
 
 A green PR, merged branch, deployed build, board status, owner plan approval, or enabled runtime is not an order approval. Do not merge or deploy around failed or unavailable checks.

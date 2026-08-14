@@ -27,9 +27,9 @@ This is a research hypothesis—not established edge. Live capital remains block
 Deliverables:
 
 - Architecture decision records for trust boundaries and live transport isolation.
-- Threat model covering secrets, WhatsApp impersonation/replay, prompt injection, stale quotes, duplicate submission, ambiguous POST outcomes, and compromised agents.
+- Threat model covering protected runtime configuration, sender-identity/replay errors, untrusted instructions embedded in external content, stale quotes, duplicate submission, ambiguous POST outcomes, and agent integrity loss.
 - Explicit state machines for recommendations, approvals, submissions, orders, fills, positions, and reconciliation.
-- Data-retention, incident-response, and kill-switch runbooks.
+- Data-retention, incident-response, and safety-stop runbooks.
 - CI policies: tests, lint, types, dependency audit, secret scan, and branch protection.
 
 **Exit gate:** Owner approves governance documents; independent reviewer confirms that no planning or agent channel can authorize a financial action.
@@ -106,7 +106,7 @@ Deliverables:
 - Maximum-loss, expected-loss, liquidity-consumption, and stress-scenario calculations.
 - Conservative fractional-Kelly research sizing with uncertainty haircut and hard ceilings.
 - Per-market, event, underlying, category, daily-loss, gross, net, and drawdown controls.
-- Kill switches for data health, model drift, calibration failure, execution divergence, and reconciliation breaks.
+- Safety stops for data health, model drift, calibration failure, execution divergence, and reconciliation breaks.
 
 **Exit gate:** Property and concurrency tests prove deterministic limit enforcement; optimizer failure creates no proposal.
 
@@ -210,7 +210,7 @@ Production-ready means the system is capable of safely attempting a separately a
 - bounded idempotent submission;
 - durable causal audit trail;
 - authoritative reconciliation;
-- tested kill switches and incident response;
+- tested safety stops and incident response;
 - objective strategy evidence;
 - and independent review.
 

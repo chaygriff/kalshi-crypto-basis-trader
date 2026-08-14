@@ -39,7 +39,7 @@ STATE_MACHINE_ASSERTIONS = (
     "`reserved -> approved -> revalidating -> rejected_pre_submit | ready_to_submit -> "
     "submission_started`",
     "`ready_to_submit` is reachable only from `revalidating` after market status, rules identity, "
-    "executable quote, depth, fees, caps, reservations, mode, and kill-switch checks all pass.",
+    "executable quote, depth, fees, caps, reservations, mode, and safety-stop checks all pass.",
     "`submission_unknown` is never automatically retried.",
     "The original attempt remains terminal as `submission_unknown`; reconciliation appends "
     "separate order and reconciliation events and never changes or revives the attempt.",
@@ -48,7 +48,7 @@ STATE_MACHINE_ASSERTIONS = (
     "`shadow|paper -> approved|submission_started`",
 )
 
-FORBIDDEN_ENABLEMENT_MARKERS = {
+DISALLOWED_ENABLEMENT_MARKERS = {
     "LIVE_TRADING_ENABLED",
     "PRODUCTION_ENABLED",
     ".live-trading-enabled",
@@ -64,7 +64,7 @@ IGNORED_PARTS = {
 ENABLEMENT_ASSIGNMENT = re.compile(
     r"(?im)^\s*(?:LIVE|LIVE_TRADING_ENABLED|PRODUCTION_ENABLED)\s*=\s*(?:1|true|yes|on)\s*$"
 )
-FORBIDDEN_SOURCE_CAPABILITIES = re.compile(
+DISALLOWED_SOURCE_CAPABILITIES = re.compile(
     r"\b(?:place_order|submit_order|cancel_all|authenticated_post|sign_order)\b"
 )
 
@@ -96,8 +96,8 @@ def _reject_phase_zero_capabilities(root: Path) -> None:
         if not path.is_file() or any(part in IGNORED_PARTS for part in path.parts):
             continue
         relative = path.relative_to(root)
-        if path.name in FORBIDDEN_ENABLEMENT_MARKERS:
-            raise GovernanceError(f"Phase 0 forbidden capability: enablement marker {relative}")
+        if path.name in DISALLOWED_ENABLEMENT_MARKERS:
+            raise GovernanceError(f"Phase 0 disallowed capability: enablement marker {relative}")
         if _is_policy_or_validator_fixture(relative):
             continue
         try:
@@ -105,9 +105,9 @@ def _reject_phase_zero_capabilities(root: Path) -> None:
         except UnicodeDecodeError:
             continue
         if ENABLEMENT_ASSIGNMENT.search(content):
-            raise GovernanceError(f"Phase 0 forbidden capability: live assignment in {relative}")
-        if relative.parts[0] == "src" and FORBIDDEN_SOURCE_CAPABILITIES.search(content):
-            raise GovernanceError(f"Phase 0 forbidden capability: mutation code in {relative}")
+            raise GovernanceError(f"Phase 0 disallowed capability: live assignment in {relative}")
+        if relative.parts[0] == "src" and DISALLOWED_SOURCE_CAPABILITIES.search(content):
+            raise GovernanceError(f"Phase 0 disallowed capability: mutation code in {relative}")
 
 
 def _is_policy_or_validator_fixture(relative: Path) -> bool:

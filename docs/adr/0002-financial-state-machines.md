@@ -19,7 +19,7 @@
 - Parsing and validation complete before any reservation.
 - Authorization binds owner identity, source message identity, recommendation ID, ticker, economic outcome, exchange side, quantity, limit, all-in cap, policy version, and expiry.
 - Any attempted fresh revalidation consumes the one-time authority.
-- `ready_to_submit` is reachable only from `revalidating` after market status, rules identity, executable quote, depth, fees, caps, reservations, mode, and kill-switch checks all pass.
+- `ready_to_submit` is reachable only from `revalidating` after market status, rules identity, executable quote, depth, fees, caps, reservations, mode, and safety-stop checks all pass.
 - `rejected_pre_submit` is terminal and guarantees no mutation request was sent.
 
 ## Submission attempt lifecycle
@@ -56,7 +56,7 @@
 - It cannot create, resize, replace, cancel, or retry an order.
 - `unresolved` exceeding the operational deadline becomes `escalated` and keeps live mutation disabled.
 
-## Forbidden transitions
+## Disallowed transitions
 
 - `expired|superseded|rejected|consumed -> published`
 - `approved -> submission_started`

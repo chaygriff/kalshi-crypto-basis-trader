@@ -36,5 +36,5 @@ Every envelope construction path is validation: direct construction and factory 
 - Adapters must distinguish source observation time from local receipt/ingestion time.
 - Normalizers use `Decimal` or integers, never floats.
 - A parser-version change creates a distinct idempotency domain and never rewrites prior snapshots.
-- The in-memory store is reference behavior for tests and replay tooling, not production durability.
-- Database selection and retention implementation remain separate later work, but must preserve these semantics.
+- The in-memory store is reference behavior for tests, parser development, and bounded replay tooling, not live collection durability.
+- Durable restart-safe storage is now a Phase 1 prerequisite for recurring collection. Its implementation remains a separate reviewed work item and must preserve these identities, raw-byte checks, idempotency, append-only lineage, and replay semantics.

@@ -36,17 +36,34 @@ Deliverables:
 
 ## Phase 1 — Point-in-time market data and contract identity
 
-**Objective:** Build a read-only, reproducible market-data foundation.
+**Objective:** Build a read-only, reproducible market-data foundation and validate it against bounded live provider behavior.
 
 Deliverables:
 
 - Kalshi BTC/ETH market discovery, rule capture, lifecycle state, fee metadata, top-of-book and depth snapshots.
-- Options-provider adapter for instruments, chains, bid/ask, size, open interest, forward/index metadata, and source clocks.
+- Provider-specific Kalshi HTTPS transport behind the GET-only ingestion interface, with exact-origin allowlisting, TLS verification, no redirects, bounded timeouts and response sizes, exact raw bytes, source/receipt clocks, and no mutation methods.
+- Public Deribit HTTP transport and options-provider adapter for instruments, chains, bid/ask, size, open interest, forward/index metadata, and source clocks.
+- Bounded one-shot Kalshi and Deribit collectors that persist raw and normalized evidence, emit deterministic completeness/gap reports, and exit.
+- Durable restart-safe point-in-time storage preserving the accepted snapshot identities, raw hashes, replay, idempotency, and append-only semantics.
 - Contract-equivalence engine classifying mappings as Exact, Model-adjusted, Proxy, or Rejected.
 - Immutable raw-payload hashes and idempotent ingestion.
 - Live/historical endpoint routing and gap/reconciliation reports.
+- Supervised credential-minimal live smoke checks isolated from deterministic CI; public endpoints are preferred and authenticated reads are used only where required.
 
-**Exit gate:** Historical replay reproduces identical normalized snapshots; unsupported or ambiguous contracts fail closed; credentials present during tests still produce zero mutation requests.
+**Exit gate:** Historical and restart replay reproduce identical normalized snapshots; bounded supervised live reads traverse the same transport, collector, persistence, and replay boundaries; unsupported, partial, stale, or ambiguous evidence fails closed; and credentials present during tests and live reads still produce zero mutation requests.
+
+### Phase 1 runtime staging
+
+1. Preserve the merged immutable snapshot and abstract Kalshi ingestion foundations as the deterministic baseline.
+2. Add a concrete Kalshi read-only HTTPS transport and one-shot collector and test them against deterministic fixtures and a local HTTP server; do not yet report a production collection as complete.
+3. Add durable storage and prove atomic completion, idempotent rerun, corruption detection, and restart/replay before a research-eligible live collection.
+4. Run one supervised Kalshi production read through the complete transport, collector, durable-persistence, and replay path.
+5. Implement the Deribit public HTTP adapter and one-shot BTC/ETH options collector against fixtures and a local HTTP server, then run one supervised public read through the same durable evidence boundary.
+6. Use retained live observations to implement deterministic contract equivalence and complete the Phase 1 review.
+7. Add a scheduler only after one-shot completeness, storage recovery, rate-limit behavior, and overlap prevention pass independent review.
+8. Add a long-running service entry point, health/readiness reporting, and WebSocket synchronization as separate operational work after the scheduled REST baseline is reliable.
+
+Live connectivity validates provider and ingestion assumptions but confers no forecasting, recommendation, authorization, or trading authority.
 
 ## Phase 2 — Options distribution and calibrated alpha
 
@@ -114,7 +131,7 @@ Deliverables:
 
 Deliverables:
 
-- Kalshi signer and authenticated read-only health check with zero secret leakage.
+- Kalshi order-runtime signer and authenticated portfolio/reconciliation health checks with zero secret leakage, reusing but not broadening the reviewed read-only signing primitive from Phase 1.
 - Exact YES/NO economic-side and payload-price parity.
 - Bounded limit IOC payload construction and client-order idempotency.
 - Fresh market, quote, depth, balance, fee, budget, and policy revalidation.

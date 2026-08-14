@@ -1,7 +1,7 @@
 # ADR 0003: Live Transport Isolation
 
 - **Status:** Accepted for Phase 0
-- **Current implementation status:** Transport does not exist; live trading remains disabled.
+- **Current implementation status:** No mutation transport exists and live trading remains disabled. Phase 1 now plans separate concrete read-only provider transports and collectors under ADR 0006; they do not implement this mutation interface.
 
 ## Decision
 
@@ -21,9 +21,11 @@ It may not accept free-form text, ticker aliases, model probabilities, budgets r
 
 - No `LIVE=true` or repository-file enablement flag.
 - Production mutation requires deployment-level capability injection, an owner-approved release record, passing required checks, independent review evidence, and an unexpired canary policy.
-- Credentials are available only to the transport runtime, never CI, GitHub, test fixtures, agents, or shadow workers.
+- Credentials are available only to the narrowly scoped runtime that requires them, never CI, GitHub, test fixtures, reviewer agents, model workers, or shadow workers. A Phase 1 authenticated read process receives signing capability without receiving any mutation method or route.
 - Network policy should allow the transport only to required Kalshi hosts; shadow and reviewer processes have no mutation credential.
 - Kill-switch state is independently readable and defaults to stopped on absence, corruption, or timeout.
+
+Read-only connectivity, authenticated health, collection success, and persisted market evidence are data capabilities only. They cannot enable, configure, or invoke the eventual mutation transport.
 
 ## Order constraints
 

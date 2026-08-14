@@ -1,4 +1,4 @@
-# Phase 0 Verification Matrix
+# Program Verification Matrix
 
 | Control objective | Required evidence before implementation | Required test before canary | Failure action |
 |---|---|---|---|
@@ -12,15 +12,20 @@
 | Atomic persistence | Append-only transitions | Failure injection before/after invocation and concurrent DB tests | Block release |
 | Authoritative reconciliation | Read-only interface | Order/fill/position disagreement remains unresolved, never inferred | Block affected risk group |
 | Secret isolation | Security policy and CI permissions | Secret scan, log redaction, credential-free CI/reviewer proof | Rotate and investigate |
+| Live read-only origin and capability isolation | Read-only collection ADR | Exact host/path allowlist, no redirects, GET-only surface, credentials present with zero mutation methods or requests | Disable collector and review transport |
+| One-shot collection completeness | Provider adapter contracts | Pagination, expected-record, source-clock, synchronization-window, and explicit partial-run tests plus supervised live gap report | Quarantine run; no downstream use |
+| Durable evidence and restart replay | Snapshot ADR and retention runbook | Raw-byte identity, atomic terminal state, idempotent rerun, corruption, crash, and clean-restart tests | Stop recurring collection |
+| Scheduler and service isolation | Runtime staging plan | No overlap, bounded backlog/retry, graceful shutdown, health/readiness, and read-only process capability tests | Keep scheduler/service disabled |
+| Stream resynchronization | Provider WebSocket contract | Disconnect/sequence-gap discards state and requires authoritative snapshot before reuse | Mark stale and resnapshot |
 | Supply-chain integrity | Lockfile and pinned CI actions | Dependency audit and reproducible clean install | Quarantine dependency |
 | Kill switch | Runbook and independent state | Switch absent/corrupt/active produces zero mutation while reads continue | Incident response |
 | Recovery | Retention/recovery runbook | Encrypted backup integrity and clean restore drill | Block production |
 | Release governance | Checklist and protected branch | Required checks and independent review on frozen commit | No merge/deploy |
 
-## Phase 0 acceptance
+## Completed Phase 0 acceptance
 
 - All governance artifacts pass `python scripts/check_governance.py`.
 - Tests, lint, type checking, dependency audit, and secret scan pass in CI.
-- The repository contains no live transport, production credential, or enablement marker.
+- At Phase 0 acceptance, the repository contained no live transport, production credential, or enablement marker. Later read-only collection work remains bound by the controls above and cannot add a mutation capability.
 - An independent credential-free reviewer returns a fail-closed PASS on the frozen tree.
 - The owner reviews and explicitly approves the governance package; this approval is not an order approval.

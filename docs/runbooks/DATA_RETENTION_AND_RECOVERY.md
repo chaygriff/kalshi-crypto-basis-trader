@@ -21,6 +21,15 @@ Longer legal or regulatory requirements override these engineering defaults afte
 - Use consistent snapshots and include schema version, event count, first/last event identity, and cryptographic manifest.
 - Restrict restore capability and log every access.
 
+## Phase 1 live-collection durability
+
+- A supervised connectivity probe may retain only a redacted success record when its purpose is authentication or protocol validation.
+- A provider observation used for research, equivalence, modeling, or later replay must persist its exact raw bytes and validated snapshot envelope outside Git before the collection run is reported complete.
+- The in-memory reference store is not an acceptable destination for recurring collection or evidence needed after process exit.
+- Every one-shot collection run has a durable run identity and terminal state: `complete`, `incomplete`, or `failed`. A partial run never becomes complete after restart without a new explicitly linked attempt.
+- Scheduler enablement requires tested atomic completion, idempotent rerun, non-overlap, bounded backlog, corruption detection, storage-capacity alarms, and clean restart behavior.
+- Long-running service and WebSocket state must rebuild from authoritative retained REST evidence after a gap; buffered deltas alone cannot establish a complete recovered state.
+
 ## Recovery objectives
 
 Before live canary, define measured RPO/RTO from deployment architecture. Initial targets are RPO <= 5 minutes for financial events and RTO <= 60 minutes for read-only reconciliation; mutation remains disabled throughout recovery.

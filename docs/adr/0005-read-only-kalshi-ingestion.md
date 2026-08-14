@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted for Phase 1 implementation review.
+Accepted and merged for Phase 1.
 
 ## Context
 
@@ -69,3 +69,5 @@ An empty order book is present evidence and is distinguished from a missing snap
 ## Consequences
 
 This adapter can produce replayable discovery, detail, routing, and depth evidence for later contract equivalence and modeling. It cannot place or authorize orders. It does not claim historical order-book coverage, fee calculation, atomic REST/stream equality, or complete consistency across a multi-page traversal. Those limitations remain explicit evidence gaps rather than inferred facts.
+
+The merged implementation is an ingestion domain layer behind an abstract GET-only transport. Its fixture and hostile-input tests do not by themselves establish live collection. ADR 0006 governs the separate concrete HTTP transport, one-shot collector, durable-storage, supervised-live-check, scheduler, service, and streaming stages. Concrete credentials must not change this adapter's route eligibility or add a mutation-capable interface.

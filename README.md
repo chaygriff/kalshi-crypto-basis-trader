@@ -56,6 +56,21 @@ GitHub Issues are the work units. The GitHub Project board is the coordination s
 - Deterministic WhatsApp command router
 - `pytest`, Ruff, mypy/pyright, secret scanning, dependency audit, and CI
 
+## PostgreSQL integration tests
+
+PostgreSQL integration tests require external libpq services named by
+`KCB_POSTGRES_ADMIN_SERVICE`, `KCB_POSTGRES_MIGRATOR_SERVICE`, and
+`KCB_POSTGRES_RUNTIME_SERVICE`. Credentials and connection details remain outside
+the repository. The admin service is test setup authority only; production runtime
+code continues to use the migrator and runtime services according to their separate
+roles.
+
+The tests refuse to run if the fixed `kalshi_crypto_basis_test` database already
+exists. They create it with a unique disposable marker, apply migrations and exercise
+the real runtime login there, verify the marker before terminating test connections,
+and drop the database in unconditional fixture cleanup. This keeps deterministic test
+rows out of the append-only development evidence ledger.
+
 ## License
 
 Source-visible public repository. No open-source license is granted unless the owner explicitly adds one.

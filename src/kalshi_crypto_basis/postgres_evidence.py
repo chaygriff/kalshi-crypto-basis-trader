@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from importlib.resources import files
@@ -52,11 +53,15 @@ class PostgresEvidenceStore:
         self._connection = connection
 
     @classmethod
-    def connect(cls, service_name: str) -> Self:
+    def connect(cls, service_name: str, *, database_name: str | None = None) -> Self:
         if type(service_name) is not str or not service_name:
             raise PostgresEvidenceError("service_name must be a non-empty string")
+        database_name = _validated_database_name(database_name)
         try:
-            connection = psycopg.connect(f"service={service_name}")
+            if database_name is None:
+                connection = psycopg.connect(service=service_name)
+            else:
+                connection = psycopg.connect(service=service_name, dbname=database_name)
         except psycopg.Error as error:
             raise PostgresEvidenceError("PostgreSQL runtime connection failed") from error
         return cls(connection)
@@ -500,17 +505,26 @@ class PostgresEvidenceStore:
         self.close()
 
 
-def apply_postgres_migrations(service_name: str) -> None:
+def apply_postgres_migrations(service_name: str, *, database_name: str | None = None) -> None:
     """Apply the reviewed transactional migration through the migrator login."""
     if type(service_name) is not str or not service_name:
         raise PostgresEvidenceError("service_name must be a non-empty string")
+    database_name = _validated_database_name(database_name)
     migration = (
         files("kalshi_crypto_basis")
         .joinpath("migrations", "0001_postgres_evidence.sql")
         .read_text(encoding="utf-8")
     )
     try:
-        with psycopg.connect(f"service={service_name}", autocommit=True) as connection:
+        if database_name is None:
+            connection = psycopg.connect(service=service_name, autocommit=True)
+        else:
+            connection = psycopg.connect(
+                service=service_name,
+                dbname=database_name,
+                autocommit=True,
+            )
+        with connection:
             connection.execute(migration)
     except psycopg.Error as error:
         raise PostgresEvidenceError("PostgreSQL migration failed") from error
@@ -542,6 +556,14 @@ def _canonical_uuid(value: object) -> str:
         raise PostgresEvidenceError("run_id must be a canonical UUID string") from error
     if str(parsed) != value:
         raise PostgresEvidenceError("run_id must be a canonical UUID string")
+    return value
+
+
+def _validated_database_name(value: object) -> str | None:
+    if value is None:
+        return None
+    if type(value) is not str or re.fullmatch(r"[a-z][a-z0-9_]{0,62}", value) is None:
+        raise PostgresEvidenceError("database_name must be a safe PostgreSQL identifier")
     return value
 
 

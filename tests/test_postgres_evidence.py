@@ -527,6 +527,109 @@ def test_postgres_complete_rejects_explicit_gaps() -> None:
             )
 
 
+def test_terminal_gaps_are_canonical_at_repository_and_direct_sql_boundaries() -> None:
+    assert MIGRATOR_SERVICE is not None
+    assert RUNTIME_SERVICE is not None
+    apply_postgres_migrations(MIGRATOR_SERVICE, database_name=TEST_DATABASE_NAME)
+    repository_run_id = str(uuid4())
+    direct_run_id = str(uuid4())
+    unicode_run_id = str(uuid4())
+    invalid_run_id = str(uuid4())
+    started_at = datetime(2026, 8, 13, 20, 7, tzinfo=UTC)
+    completed_at = datetime(2026, 8, 13, 20, 7, 1, tzinfo=UTC)
+
+    with PostgresEvidenceStore.connect(RUNTIME_SERVICE, database_name=TEST_DATABASE_NAME) as store:
+        for run_id in (repository_run_id, direct_run_id, unicode_run_id, invalid_run_id):
+            store.start_run(
+                run_id=run_id,
+                provider="deribit",
+                scope=("BTC",),
+                started_at=started_at,
+            )
+        store.finish_run(
+            run_id=repository_run_id,
+            state="incomplete",
+            completed_at=completed_at,
+            gaps=("z-gap", "a-gap", "z-gap"),
+            expected_snapshot_count=0,
+        )
+        store.finish_run(
+            run_id=repository_run_id,
+            state="incomplete",
+            completed_at=completed_at,
+            gaps=("a-gap", "z-gap"),
+            expected_snapshot_count=0,
+        )
+        replayed = store.get_run(repository_run_id)
+
+    assert replayed is not None
+    assert replayed.gaps == ("a-gap", "z-gap")
+
+    insert_terminal = """
+        INSERT INTO evidence.collection_run_events (
+            run_id, sequence, state, occurred_at, gaps_json,
+            expected_snapshot_count
+        ) VALUES (%s, 1, 'incomplete', %s, %s, 0)
+    """
+    with psycopg.connect(service=RUNTIME_SERVICE, dbname=TEST_DATABASE_NAME) as connection:
+        connection.execute(
+            insert_terminal,
+            (direct_run_id, completed_at, b'["z-gap", "a-gap", "z-gap"]'),
+        )
+        stored = connection.execute(
+            """
+            SELECT gaps_json FROM evidence.collection_run_events
+            WHERE run_id = %s AND sequence = 1
+            """,
+            (direct_run_id,),
+        ).fetchone()
+    assert stored is not None
+    assert bytes(stored[0]) == b'["a-gap","z-gap"]'
+
+    with PostgresEvidenceStore.connect(RUNTIME_SERVICE, database_name=TEST_DATABASE_NAME) as store:
+        direct_replay = store.get_run(direct_run_id)
+    assert direct_replay is not None
+    assert direct_replay.gaps == ("a-gap", "z-gap")
+
+    with psycopg.connect(service=RUNTIME_SERVICE, dbname=TEST_DATABASE_NAME) as connection:
+        connection.execute(
+            insert_terminal,
+            (
+                unicode_run_id,
+                completed_at,
+                '["β-gap", "é-gap", "a\\"quote", "line\\nbreak", "β-gap"]'.encode(),
+            ),
+        )
+        unicode_stored = connection.execute(
+            """
+            SELECT gaps_json FROM evidence.collection_run_events
+            WHERE run_id = %s AND sequence = 1
+            """,
+            (unicode_run_id,),
+        ).fetchone()
+    assert unicode_stored is not None
+    assert bytes(unicode_stored[0]) == '["a\\"quote","line\\nbreak","é-gap","β-gap"]'.encode()
+
+    with PostgresEvidenceStore.connect(RUNTIME_SERVICE, database_name=TEST_DATABASE_NAME) as store:
+        with pytest.raises(PostgresEvidenceError, match="U\\+0000"):
+            store.finish_run(
+                run_id=invalid_run_id,
+                state="incomplete",
+                completed_at=completed_at,
+                gaps=("invalid\x00gap",),
+                expected_snapshot_count=0,
+            )
+
+    invalid_gaps = (b"{}", b'[""]', b'["valid",1]', rb'["\u0000"]', b"[", b"\xff")
+    for gaps_json in invalid_gaps:
+        with psycopg.connect(service=RUNTIME_SERVICE, dbname=TEST_DATABASE_NAME) as connection:
+            with pytest.raises(psycopg.errors.CheckViolation, match="canonical gap array"):
+                connection.execute(
+                    insert_terminal,
+                    (invalid_run_id, completed_at, gaps_json),
+                )
+
+
 def test_postgres_snapshot_ordinals_must_be_contiguous() -> None:
     assert MIGRATOR_SERVICE is not None
     assert RUNTIME_SERVICE is not None

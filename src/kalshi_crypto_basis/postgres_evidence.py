@@ -363,7 +363,7 @@ class PostgresEvidenceStore:
             type(expected_snapshot_count) is not int or expected_snapshot_count <= 0
         ):
             raise PostgresEvidenceError("complete run requires exact nonzero snapshot count")
-        gaps_json = _canonical_text_tuple(gaps, "gaps", allow_empty=True)
+        gaps_json = _canonical_gap_tuple(gaps)
         if state == "complete" and gaps_json != b"[]":
             raise PostgresEvidenceError("complete run cannot retain gaps")
         try:
@@ -473,7 +473,7 @@ class PostgresEvidenceStore:
         except psycopg.Error as error:
             raise PostgresEvidenceError("PostgreSQL collection run read failed") from error
         scope = _decode_text_tuple(_database_bytes(row[1]), "scope")
-        gaps = _decode_text_tuple(_database_bytes(row[5]), "gaps")
+        gaps = _decode_canonical_gaps(_database_bytes(row[5]))
         state = str(row[3])
         started_at = _database_datetime(row[2], "started_at")
         completed_at = None if state == "started" else _database_datetime(row[4], "completed_at")
@@ -600,6 +600,23 @@ def _decode_text_tuple(value: bytes, field: str) -> tuple[str, ...]:
     if not isinstance(parsed, list) or not all(type(item) is str and item for item in parsed):
         raise PostgresEvidenceError(f"stored {field} is invalid")
     return tuple(parsed)
+
+
+def _canonical_gap_tuple(value: object) -> bytes:
+    validated = _decode_text_tuple(
+        _canonical_text_tuple(value, "gaps", allow_empty=True),
+        "gaps",
+    )
+    if any("\x00" in gap for gap in validated):
+        raise PostgresEvidenceError("gaps must not contain U+0000")
+    return _canonical_text_tuple(tuple(sorted(set(validated))), "gaps", allow_empty=True)
+
+
+def _decode_canonical_gaps(value: bytes) -> tuple[str, ...]:
+    gaps = _decode_text_tuple(value, "gaps")
+    if tuple(sorted(set(gaps))) != gaps or _canonical_gap_tuple(gaps) != value:
+        raise PostgresEvidenceError("stored gaps are not canonical")
+    return gaps
 
 
 def _database_bytes(value: object) -> bytes:

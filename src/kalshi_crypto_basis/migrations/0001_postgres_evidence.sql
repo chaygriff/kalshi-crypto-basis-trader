@@ -134,6 +134,8 @@ DECLARE
     retained_snapshot_count integer;
     retained_min_ordinal integer;
     retained_max_ordinal integer;
+    parsed_gaps jsonb;
+    canonical_gaps text;
 BEGIN
     PERFORM 1 FROM evidence.collection_runs
     WHERE run_id = NEW.run_id
@@ -142,6 +144,35 @@ BEGIN
         RAISE EXCEPTION 'collection run does not exist'
             USING ERRCODE = '23503';
     END IF;
+    BEGIN
+        parsed_gaps := convert_from(NEW.gaps_json, 'UTF8')::jsonb;
+    EXCEPTION WHEN others THEN
+        RAISE EXCEPTION 'gaps_json must be a canonical gap array'
+            USING ERRCODE = '23514';
+    END;
+    IF jsonb_typeof(parsed_gaps) <> 'array' THEN
+        RAISE EXCEPTION 'gaps_json must be a canonical gap array'
+            USING ERRCODE = '23514';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(parsed_gaps) AS item(value)
+        WHERE jsonb_typeof(value) <> 'string'
+           OR value #>> '{}' = ''
+    ) THEN
+        RAISE EXCEPTION 'gaps_json must be a canonical gap array'
+            USING ERRCODE = '23514';
+    END IF;
+    SELECT COALESCE(
+        '[' || string_agg(to_json(gap)::text, ',' ORDER BY gap COLLATE "C") || ']',
+        '[]'
+    )
+    INTO canonical_gaps
+    FROM (
+        SELECT DISTINCT value #>> '{}' AS gap
+        FROM jsonb_array_elements(parsed_gaps) AS item(value)
+    ) AS canonical_items;
+    NEW.gaps_json := convert_to(canonical_gaps, 'UTF8');
     IF NEW.sequence = 1 AND NEW.state = 'complete' THEN
         IF NEW.gaps_json <> convert_to('[]', 'UTF8') THEN
             RAISE EXCEPTION 'complete run cannot retain gaps'

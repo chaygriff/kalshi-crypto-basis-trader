@@ -8,9 +8,9 @@ Launch a production-ready Kalshi crypto trading account workflow that is reachab
 
 ## Current status
 
-**Phase 0 governance and the first two Phase 1 foundations are complete. Live trading is disabled.** The repository now contains the immutable snapshot schema and the abstract GET-only Kalshi BTC/ETH ingestion boundary. It does not yet contain a concrete HTTP transport, one-shot collector, scheduler, service entry point, or mutation transport.
+**Phase 0 governance and the initial Phase 1 evidence foundations are complete. Live trading is disabled.** The repository now contains the immutable snapshot schema, PostgreSQL evidence and collection-run ledgers, the abstract GET-only Kalshi BTC/ETH ingestion boundary, and a concrete public read-only Deribit options transport and bounded one-shot collector. It does not contain a concrete Kalshi HTTP transport, scheduler, service entry point, WebSocket synchronization, model, or mutation transport.
 
-Production Kalshi REST and authenticated WebSocket connectivity have been verified through the separate `kalshi-exa-research` reference implementation without exposing credentials or making a mutation request. That verifies the external connection prerequisites, not this repository's ingestion architecture. The current Phase 1 plan is therefore to wire provider-specific live read-only HTTP transports and bounded one-shot collectors through this repository's immutable evidence boundary, beginning with Kalshi and Deribit. Durable restart-safe storage precedes recurring collection; scheduling, long-running service lifecycle, and streaming synchronization follow only after reviewed one-shot collection succeeds.
+Production Kalshi REST and authenticated WebSocket connectivity have been verified through the separate `kalshi-exa-research` reference implementation without exposing credentials or making a mutation request. That verifies external connection prerequisites, not this repository's Kalshi ingestion architecture. PostgreSQL and the public Deribit one-shot evidence path are implemented here; recurring collection remains disabled. Scheduling, long-running service lifecycle, and streaming synchronization remain separate later stages.
 
 No issue, pull request, project-card movement, documentation change, agent message, model output, data connection, or successful read authorizes an order.
 
@@ -47,7 +47,7 @@ GitHub Issues are the work units. The GitHub Project board is the coordination s
 
 - Python 3.12+
 - `uv` for dependency and environment management
-- SQLite append-only evidence and audit ledgers initially; migration path documented before multi-host operation
+- PostgreSQL append-only evidence snapshots and collection-run event ledgers with protected external connection configuration
 - Provider-specific Kalshi HTTPS transport and bounded one-shot collector behind the existing GET-only interface
 - Public Deribit BTC/ETH instrument and options-chain transport plus bounded one-shot collector
 - Scheduler and long-running service lifecycle only after durable one-shot collection and restart recovery pass review
@@ -55,6 +55,21 @@ GitHub Issues are the work units. The GitHub Project board is the coordination s
 - A separate narrow authenticated order transport only in the later execution phase
 - Deterministic WhatsApp command router
 - `pytest`, Ruff, mypy/pyright, secret scanning, dependency audit, and CI
+
+## PostgreSQL integration tests
+
+PostgreSQL integration tests require external libpq services named by
+`KCB_POSTGRES_ADMIN_SERVICE`, `KCB_POSTGRES_MIGRATOR_SERVICE`, and
+`KCB_POSTGRES_RUNTIME_SERVICE`. Credentials and connection details remain outside
+the repository. The admin service is test setup authority only; production runtime
+code continues to use the migrator and runtime services according to their separate
+roles.
+
+The tests refuse to run if the fixed `kalshi_crypto_basis_test` database already
+exists. They create it with a unique disposable marker, apply migrations and exercise
+the real runtime login there, verify the marker before terminating test connections,
+and drop the database in unconditional fixture cleanup. This keeps deterministic test
+rows out of the append-only development evidence ledger.
 
 ## License
 

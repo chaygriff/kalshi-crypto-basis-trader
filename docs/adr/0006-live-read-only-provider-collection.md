@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted as the current Phase 1 implementation plan; not yet implemented in this repository.
+Accepted and partially implemented. PostgreSQL evidence persistence and the bounded public Deribit REST path are implemented; Kalshi transport, recurring scheduling, service lifecycle, and WebSocket synchronization remain deferred.
 
 ## Context
 
@@ -16,9 +16,9 @@ The project will establish live read-only collection during Phase 1 so contract 
 
 Implement and review these capabilities in order:
 
-1. provider-specific concrete HTTP transports;
-2. bounded one-shot collectors;
-3. durable restart-safe evidence storage;
+1. durable restart-safe evidence storage;
+2. provider-specific concrete HTTP transports;
+3. bounded one-shot collectors;
 4. supervised live smoke checks through the complete collection path;
 5. recurring scheduler;
 6. long-running service lifecycle and health reporting; and
@@ -34,7 +34,7 @@ The one-shot collector uses reviewed BTC/ETH Series configuration, traverses bou
 
 ### Deribit transport
 
-Initial Deribit instrument, index, ticker, summary, and order-book collection uses documented public read-only interfaces and no credentials unless a later reviewed requirement proves them necessary. Native instrument identity, expiry, strike, option type, lifecycle, quote sizes, index/underlying references, open interest, provider clocks, and exact raw evidence are retained.
+Initial Deribit instrument discovery and depth-one order-book collection uses documented public read-only interfaces and no credentials. Native instrument identity, expiry, strike, option type, lifecycle, quote prices and sizes, index/underlying references, open interest, IV metadata, provider clocks, and exact raw evidence are retained.
 
 The one-shot options collector declares its expected instrument set and synchronization window before completion. Missing, stale, conflicting, or temporally incoherent observations produce an incomplete batch and explicit gaps; they are never silently dropped from a claimed complete surface.
 

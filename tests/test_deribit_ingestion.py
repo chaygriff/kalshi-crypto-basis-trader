@@ -249,6 +249,7 @@ def test_crossed_book_produces_incomplete_run() -> None:
     name = "BTC-28AUG26-100000-C"
     crossed = _book(name)
     crossed["best_bid_price"] = 0.13
+    crossed["bids"] = [[0.13, 3.0]]
     responses: dict[tuple[str, tuple[tuple[str, object], ...]], bytes] = {
         (
             "/public/get_instruments",
@@ -297,6 +298,271 @@ def test_order_book_accepts_null_trade_range_statistics() -> None:
     assert isinstance(normalized_stats, Mapping)
     assert normalized_stats["high"] is None
     assert normalized_stats["low"] is None
+
+
+def test_order_book_preserves_unusual_plausible_values() -> None:
+    name = "BTC-28AUG26-100000-C"
+    book = _book(name)
+    book["open_interest"] = 0
+    book["ask_iv"] = 999
+    book["interest_rate"] = -0.25
+    book["mark_price"] = 0
+    book["last_price"] = 0.9
+    stats = book["stats"]
+    assert isinstance(stats, dict)
+    stats.update({"volume": 0, "volume_usd": 0, "high": 0.3, "low": 0.2, "price_change": -99})
+    greeks = book["greeks"]
+    assert isinstance(greeks, dict)
+    greeks.update({"delta": -1, "gamma": -2, "rho": -3, "theta": -4, "vega": -5})
+    response = DeribitReadOnlyResponse(
+        status_code=200,
+        content_type="application/json",
+        body=_rpc(book),
+        received_at=datetime(2026, 8, 13, 20, 0, 2, tzinfo=UTC),
+    )
+
+    parsed = parse_deribit_order_book(response, expected_instrument_name=name)
+
+    normalized_book = parsed.normalized["book"]
+    assert isinstance(normalized_book, Mapping)
+    assert normalized_book["ask_iv"] == Decimal(999)
+    assert normalized_book["open_interest"] == Decimal(0)
+    assert normalized_book["interest_rate"] == Decimal("-0.25")
+    assert normalized_book["mark_price"] == Decimal(0)
+    assert normalized_book["last_price"] == Decimal("0.9")
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("state", "closed"),
+        ("open_interest", -1),
+        ("best_bid_price", -1),
+        ("best_ask_price", -1),
+        ("index_price", 0),
+        ("mark_price", -1),
+        ("last_price", -1),
+        ("min_price", 0),
+        ("max_price", 0),
+        ("underlying_price", 0),
+        ("bid_iv", -1),
+        ("ask_iv", -1),
+        ("mark_iv", -1),
+    ],
+)
+def test_order_book_rejects_impossible_scalar_values(field: str, value: object) -> None:
+    name = "BTC-28AUG26-100000-C"
+    book = _book(name)
+    book[field] = value
+    response = DeribitReadOnlyResponse(
+        status_code=200,
+        content_type="application/json",
+        body=_rpc(book),
+        received_at=datetime(2026, 8, 13, 20, 0, 2, tzinfo=UTC),
+    )
+
+    with pytest.raises(DeribitIngestionError):
+        parse_deribit_order_book(response, expected_instrument_name=name)
+
+
+@pytest.mark.parametrize(("field", "value"), [("volume", -1), ("volume_usd", -1)])
+def test_order_book_rejects_negative_volume_statistics(field: str, value: object) -> None:
+    name = "BTC-28AUG26-100000-C"
+    book = _book(name)
+    stats = book["stats"]
+    assert isinstance(stats, dict)
+    stats[field] = value
+    response = DeribitReadOnlyResponse(
+        status_code=200,
+        content_type="application/json",
+        body=_rpc(book),
+        received_at=datetime(2026, 8, 13, 20, 0, 2, tzinfo=UTC),
+    )
+
+    with pytest.raises(DeribitIngestionError, match=field):
+        parse_deribit_order_book(response, expected_instrument_name=name)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("best_bid_amount", 0),
+        ("best_bid_amount", -1),
+        ("best_ask_amount", 0),
+        ("best_ask_amount", -1),
+    ],
+)
+def test_order_book_rejects_nonpositive_top_level_amounts(field: str, value: object) -> None:
+    name = "BTC-28AUG26-100000-C"
+    book = _book(name)
+    book[field] = value
+    response = DeribitReadOnlyResponse(
+        status_code=200,
+        content_type="application/json",
+        body=_rpc(book),
+        received_at=datetime(2026, 8, 13, 20, 0, 2, tzinfo=UTC),
+    )
+
+    with pytest.raises(DeribitIngestionError):
+        parse_deribit_order_book(response, expected_instrument_name=name)
+
+
+@pytest.mark.parametrize(
+    ("field", "level"),
+    [
+        ("bids", [-1, 3]),
+        ("bids", [0.1, 0]),
+        ("asks", [-1, 4]),
+        ("asks", [0.12, -1]),
+    ],
+)
+def test_order_book_rejects_invalid_depth_level_values(field: str, level: list[object]) -> None:
+    name = "BTC-28AUG26-100000-C"
+    book = _book(name)
+    book[field] = [level]
+    response = DeribitReadOnlyResponse(
+        status_code=200,
+        content_type="application/json",
+        body=_rpc(book),
+        received_at=datetime(2026, 8, 13, 20, 0, 2, tzinfo=UTC),
+    )
+
+    with pytest.raises(DeribitIngestionError):
+        parse_deribit_order_book(response, expected_instrument_name=name)
+
+
+@pytest.mark.parametrize(
+    ("high", "low"),
+    [(-1, None), (None, -1), (0.1, 0.2)],
+)
+def test_order_book_rejects_invalid_trade_range(high: object, low: object) -> None:
+    name = "BTC-28AUG26-100000-C"
+    book = _book(name)
+    stats = book["stats"]
+    assert isinstance(stats, dict)
+    stats["high"] = high
+    stats["low"] = low
+    response = DeribitReadOnlyResponse(
+        status_code=200,
+        content_type="application/json",
+        body=_rpc(book),
+        received_at=datetime(2026, 8, 13, 20, 0, 2, tzinfo=UTC),
+    )
+
+    with pytest.raises(DeribitIngestionError):
+        parse_deribit_order_book(response, expected_instrument_name=name)
+
+
+def test_order_book_rejects_inverted_price_band() -> None:
+    name = "BTC-28AUG26-100000-C"
+    book = _book(name)
+    book["min_price"] = 0.3
+    book["max_price"] = 0.2
+    response = DeribitReadOnlyResponse(
+        status_code=200,
+        content_type="application/json",
+        body=_rpc(book),
+        received_at=datetime(2026, 8, 13, 20, 0, 2, tzinfo=UTC),
+    )
+
+    with pytest.raises(DeribitIngestionError, match="price band"):
+        parse_deribit_order_book(response, expected_instrument_name=name)
+
+
+def test_order_book_allows_quotes_outside_current_price_band() -> None:
+    name = "BTC-28AUG26-100000-C"
+    book = _book(name)
+    book["min_price"] = 0.2
+    book["max_price"] = 0.3
+    response = DeribitReadOnlyResponse(
+        status_code=200,
+        content_type="application/json",
+        body=_rpc(book),
+        received_at=datetime(2026, 8, 13, 20, 0, 2, tzinfo=UTC),
+    )
+
+    parsed = parse_deribit_order_book(response, expected_instrument_name=name)
+
+    normalized_book = parsed.normalized["book"]
+    assert isinstance(normalized_book, Mapping)
+    assert normalized_book["best_bid_price"] == Decimal("0.1")
+    assert normalized_book["best_ask_price"] == Decimal("0.12")
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("best_bid_price", 0.09),
+        ("best_bid_amount", 4),
+        ("best_ask_price", 0.13),
+        ("best_ask_amount", 5),
+    ],
+)
+def test_order_book_rejects_top_level_depth_mismatch(field: str, value: object) -> None:
+    name = "BTC-28AUG26-100000-C"
+    book = _book(name)
+    book[field] = value
+    response = DeribitReadOnlyResponse(
+        status_code=200,
+        content_type="application/json",
+        body=_rpc(book),
+        received_at=datetime(2026, 8, 13, 20, 0, 2, tzinfo=UTC),
+    )
+
+    with pytest.raises(DeribitIngestionError, match="depth-one"):
+        parse_deribit_order_book(response, expected_instrument_name=name)
+
+
+def test_order_book_rejects_more_than_one_requested_level() -> None:
+    name = "BTC-28AUG26-100000-C"
+    book = _book(name)
+    book["bids"] = [[0.1, 3], [0.09, 2]]
+    response = DeribitReadOnlyResponse(
+        status_code=200,
+        content_type="application/json",
+        body=_rpc(book),
+        received_at=datetime(2026, 8, 13, 20, 0, 2, tzinfo=UTC),
+    )
+
+    with pytest.raises(DeribitIngestionError, match="depth level"):
+        parse_deribit_order_book(response, expected_instrument_name=name)
+
+
+def test_zero_encoded_absent_side_is_retained_as_a_gap() -> None:
+    name = "BTC-28AUG26-100000-C"
+    book = _book(name)
+    book["best_ask_price"] = 0
+    book["best_ask_amount"] = 0
+    book["asks"] = []
+    responses: dict[tuple[str, tuple[tuple[str, object], ...]], bytes] = {
+        (
+            "/public/get_instruments",
+            (("currency", "BTC"), ("expired", False), ("kind", "option")),
+        ): _rpc([_instrument("BTC", name)]),
+        (
+            "/public/get_order_book",
+            (("depth", 1), ("instrument_name", name)),
+        ): _rpc(book),
+    }
+    store = RecordingEvidenceStore()
+    collector = DeribitOptionsCollector(
+        transport=RecordingDeribitTransport(responses),
+        evidence_store=store,
+        clock=lambda: datetime(2026, 8, 13, 20, 0, 2, tzinfo=UTC),
+        wait=lambda _: None,
+        max_instruments=10,
+        max_synchronization_seconds=5,
+    )
+
+    run = collector.collect(currencies=("BTC",), run_id="00000000-0000-4000-8000-000000000108")
+
+    assert run.state == "incomplete"
+    assert f"missing_ask:{name}" in run.gaps
+    normalized = cast(Mapping[str, object], store.snapshots[1].normalized)
+    normalized_book = normalized["book"]
+    assert isinstance(normalized_book, Mapping)
+    assert normalized_book["best_ask_price"] == Decimal(0)
+    assert normalized_book["best_ask_amount"] == Decimal(0)
 
 
 def test_order_book_rejects_timestamp_later_than_receipt_clock() -> None:

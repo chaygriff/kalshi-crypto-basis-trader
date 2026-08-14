@@ -431,28 +431,38 @@ def parse_deribit_order_book(
     fields = {
         "instrument_name": expected_instrument_name,
         "timestamp": _required_integer(item, "timestamp"),
-        "state": _required_text(item, "state"),
-        "open_interest": _required_decimal(item, "open_interest"),
-        "best_bid_price": _optional_decimal(item, "best_bid_price"),
-        "best_bid_amount": _optional_decimal(item, "best_bid_amount"),
-        "best_ask_price": _optional_decimal(item, "best_ask_price"),
-        "best_ask_amount": _optional_decimal(item, "best_ask_amount"),
-        "index_price": _required_decimal(item, "index_price"),
-        "mark_price": _required_decimal(item, "mark_price"),
-        "last_price": _optional_decimal(item, "last_price"),
-        "min_price": _required_decimal(item, "min_price"),
-        "max_price": _required_decimal(item, "max_price"),
-        "underlying_price": _required_decimal(item, "underlying_price"),
+        "state": _enum_text(item, "state", {"open"}),
+        "open_interest": _nonnegative_decimal(item, "open_interest"),
+        "best_bid_price": _optional_nonnegative_decimal(item, "best_bid_price"),
+        "best_bid_amount": _optional_nonnegative_decimal(item, "best_bid_amount"),
+        "best_ask_price": _optional_nonnegative_decimal(item, "best_ask_price"),
+        "best_ask_amount": _optional_nonnegative_decimal(item, "best_ask_amount"),
+        "index_price": _positive_decimal(item, "index_price"),
+        "mark_price": _nonnegative_decimal(item, "mark_price"),
+        "last_price": _optional_nonnegative_decimal(item, "last_price"),
+        "min_price": _positive_decimal(item, "min_price"),
+        "max_price": _positive_decimal(item, "max_price"),
+        "underlying_price": _positive_decimal(item, "underlying_price"),
         "underlying_index": _required_text(item, "underlying_index"),
         "interest_rate": _required_decimal(item, "interest_rate"),
-        "bid_iv": _optional_decimal(item, "bid_iv"),
-        "ask_iv": _optional_decimal(item, "ask_iv"),
-        "mark_iv": _required_decimal(item, "mark_iv"),
+        "bid_iv": _optional_nonnegative_decimal(item, "bid_iv"),
+        "ask_iv": _optional_nonnegative_decimal(item, "ask_iv"),
+        "mark_iv": _nonnegative_decimal(item, "mark_iv"),
         "stats": _deribit_stats(item),
         "greeks": _deribit_greeks(item),
         "bids": _price_levels(item, "bids"),
         "asks": _price_levels(item, "asks"),
     }
+    _validate_order_book_semantics(
+        min_price=cast(Decimal, fields["min_price"]),
+        max_price=cast(Decimal, fields["max_price"]),
+        best_bid_price=cast(Decimal | None, fields["best_bid_price"]),
+        best_bid_amount=cast(Decimal | None, fields["best_bid_amount"]),
+        best_ask_price=cast(Decimal | None, fields["best_ask_price"]),
+        best_ask_amount=cast(Decimal | None, fields["best_ask_amount"]),
+        bids=cast(tuple[tuple[Decimal, Decimal], ...], fields["bids"]),
+        asks=cast(tuple[tuple[Decimal, Decimal], ...], fields["asks"]),
+    )
     return ParsedDeribitEvidence(
         normalized=MappingProxyType({"book": MappingProxyType(fields)}),
         observed_at=book_observed_at,
@@ -502,15 +512,71 @@ def _book_gaps(name: str, book: Mapping[str, object]) -> list[str]:
     gaps: list[str] = []
     bid = book["best_bid_price"]
     ask = book["best_ask_price"]
-    bid_amount = book["best_bid_amount"]
-    ask_amount = book["best_ask_amount"]
-    if bid is None or bid_amount is None:
+    bids = book["bids"]
+    asks = book["asks"]
+    if not isinstance(bids, tuple) or not isinstance(asks, tuple):
+        raise DeribitIngestionError("normalized depth is invalid")
+    missing_bid = not bids
+    missing_ask = not asks
+    if missing_bid:
         gaps.append(f"missing_bid:{name}")
-    if ask is None or ask_amount is None:
+    if missing_ask:
         gaps.append(f"missing_ask:{name}")
-    if isinstance(bid, Decimal) and isinstance(ask, Decimal) and bid > ask:
+    if (
+        not missing_bid
+        and not missing_ask
+        and isinstance(bid, Decimal)
+        and isinstance(ask, Decimal)
+        and bid > ask
+    ):
         gaps.append(f"crossed_book:{name}")
     return gaps
+
+
+def _validate_order_book_semantics(
+    *,
+    min_price: Decimal,
+    max_price: Decimal,
+    best_bid_price: Decimal | None,
+    best_bid_amount: Decimal | None,
+    best_ask_price: Decimal | None,
+    best_ask_amount: Decimal | None,
+    bids: tuple[tuple[Decimal, Decimal], ...],
+    asks: tuple[tuple[Decimal, Decimal], ...],
+) -> None:
+    if min_price > max_price:
+        raise DeribitIngestionError("order book price band is inverted")
+    _validate_depth_one_side(
+        side="bid",
+        best_price=best_bid_price,
+        best_amount=best_bid_amount,
+        levels=bids,
+    )
+    _validate_depth_one_side(
+        side="ask",
+        best_price=best_ask_price,
+        best_amount=best_ask_amount,
+        levels=asks,
+    )
+
+
+def _validate_depth_one_side(
+    *,
+    side: str,
+    best_price: Decimal | None,
+    best_amount: Decimal | None,
+    levels: tuple[tuple[Decimal, Decimal], ...],
+) -> None:
+    if levels:
+        level_price, level_amount = levels[0]
+        if (best_price, best_amount) != (level_price, level_amount):
+            raise DeribitIngestionError(f"{side} top level does not match depth-one level")
+        return
+    if (best_price, best_amount) not in {
+        (None, None),
+        (Decimal(0), Decimal(0)),
+    }:
+        raise DeribitIngestionError(f"{side} top level does not match empty depth-one side")
 
 
 def _validate_transport_request(path: object, params: object) -> None:
@@ -613,6 +679,20 @@ def _positive_decimal(item: Mapping[str, object], field: str) -> Decimal:
     return value
 
 
+def _nonnegative_decimal(item: Mapping[str, object], field: str) -> Decimal:
+    value = _required_decimal(item, field)
+    if value < 0:
+        raise DeribitIngestionError(f"{field} must not be negative")
+    return value
+
+
+def _optional_nonnegative_decimal(item: Mapping[str, object], field: str) -> Decimal | None:
+    value = _optional_decimal(item, field)
+    if value is not None and value < 0:
+        raise DeribitIngestionError(f"{field} must not be negative")
+    return value
+
+
 def _optional_decimal(item: Mapping[str, object], field: str) -> Decimal | None:
     value = item.get(field)
     if value is None:
@@ -638,8 +718,8 @@ def _price_levels(item: Mapping[str, object], field: str) -> tuple[tuple[Decimal
             raise DeribitIngestionError(f"{field} contains an invalid level")
         levels.append(
             (
-                _decimal_value(level[0], f"{field} price"),
-                _decimal_value(level[1], f"{field} amount"),
+                _nonnegative_decimal_value(level[0], f"{field} price"),
+                _positive_decimal_value(level[1], f"{field} amount"),
             )
         )
     return tuple(levels)
@@ -657,15 +737,33 @@ def _decimal_value(value: object, field: str) -> Decimal:
     return result
 
 
+def _nonnegative_decimal_value(value: object, field: str) -> Decimal:
+    result = _decimal_value(value, field)
+    if result < 0:
+        raise DeribitIngestionError(f"{field} must not be negative")
+    return result
+
+
+def _positive_decimal_value(value: object, field: str) -> Decimal:
+    result = _decimal_value(value, field)
+    if result <= 0:
+        raise DeribitIngestionError(f"{field} must be positive")
+    return result
+
+
 def _deribit_stats(item: Mapping[str, object]) -> Mapping[str, object]:
     stats = _require_mapping(item.get("stats"), "stats")
+    high = _optional_nonnegative_decimal(stats, "high")
+    low = _optional_nonnegative_decimal(stats, "low")
+    if high is not None and low is not None and low > high:
+        raise DeribitIngestionError("stats low must not exceed high")
     return MappingProxyType(
         {
-            "volume": _required_decimal(stats, "volume"),
-            "high": _optional_decimal(stats, "high"),
-            "low": _optional_decimal(stats, "low"),
+            "volume": _nonnegative_decimal(stats, "volume"),
+            "high": high,
+            "low": low,
             "price_change": _optional_decimal(stats, "price_change"),
-            "volume_usd": _optional_decimal(stats, "volume_usd"),
+            "volume_usd": _optional_nonnegative_decimal(stats, "volume_usd"),
         }
     )
 

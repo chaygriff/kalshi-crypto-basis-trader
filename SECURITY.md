@@ -32,6 +32,11 @@ Treat these as release blockers:
 - ledger writes that are not atomic with state transitions;
 - WhatsApp sender-identity or message-transformation bypass;
 - secret exposure through logs, traces, CI artifacts, prompts, or exceptions.
+- credential-bearing redirects, arbitrary provider origins, or unreviewed request paths;
+- a read-only runtime exposing generic or mutation-capable HTTP methods;
+- oversized, ambiguously parsed, partial, stale, or temporally incoherent provider evidence reported as complete;
+- recurring collectors that can overlap, silently retry, lose terminal run state, or resume from incomplete evidence;
+- WebSocket state reused after a disconnect, sequence gap, or overflow without a fresh authoritative snapshot.
 
 ## Production response
 

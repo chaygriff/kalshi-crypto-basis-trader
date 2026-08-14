@@ -17,6 +17,17 @@
 - [ ] Migration, rollback, monitoring, backup, and incident impacts are documented.
 - [ ] No credential, session, database, log, backup, or production enablement marker is present.
 
+## Additional gate for live read-only data changes
+
+- [ ] Provider origin, route, HTTP method, redirect, TLS, timeout, response-size, decompression, and content-type policies are explicit and tested.
+- [ ] The exposed transport capability contains no generic request or mutation method; credential-present tests capture zero mutation requests.
+- [ ] Local HTTP-server tests cover malformed responses, duplicate keys, non-finite values, rate limits, pagination termination, partial collection, and redacted errors.
+- [ ] Every research-eligible provider response is retained as exact raw bytes plus a validated immutable envelope outside Git.
+- [ ] One-shot run identity, terminal completeness state, deterministic gap report, idempotent rerun, crash recovery, and restart replay pass.
+- [ ] A supervised live smoke check is bounded, read-only, isolated from CI, and reports no credentials, headers, signatures, private account values, or private identifiers.
+- [ ] Retained live evidence replays to the same normalized identity before recurring collection is considered.
+- [ ] Scheduler, service, and streaming capabilities remain disabled unless their separate verification rows and release scope pass.
+
 ## Additional gate for financial authority or transport changes
 
 - [ ] Every owner-message rejection path proves zero intent/transport side effects.

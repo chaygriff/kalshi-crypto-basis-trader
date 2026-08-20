@@ -74,4 +74,4 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Scan Git history and working tree
-        uses: trufflesecurity/trufflehog@466da5b0bb161144f6afca9afe5d57975828c410
+        uses: trufflesecurity/trufflehog@bcfcf73aaf4759d4dadc2783177c245a02792318

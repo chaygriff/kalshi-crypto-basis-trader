@@ -23,7 +23,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install uv and Python
-        uses: astral-sh/setup-uv@557e51de59eb14aaaba2ed9621916900a91d50c6
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           version: "0.8.4"
           python-version: "3.12"
@@ -53,7 +53,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install uv and Python
-        uses: astral-sh/setup-uv@557e51de59eb14aaaba2ed9621916900a91d50c6
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           version: "0.8.4"
           python-version: "3.12"
